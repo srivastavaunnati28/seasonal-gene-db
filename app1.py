@@ -158,7 +158,6 @@ with st.expander("🔧 First-time setup (click to create tables & load data)"):
 # Header
 st.title("🧬 Seasonal Physiology Gene Database")
 st.markdown("**Search genes → See seasonal expression roles**")
-st.caption("M.Sc. Bioinformatics Research Project | Unnati Srivastava")
 st.divider()
 
 # Search + filter row
