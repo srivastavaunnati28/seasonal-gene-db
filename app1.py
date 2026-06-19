@@ -3,14 +3,14 @@ import mysql.connector
 import pandas as pd
 import plotly.express as px
 
-# Page config
+# ── Page config (also helps with browser tab title for SEO) ────────
 st.set_page_config(
-    page_title="🧬 Seasonal Gene DB",
+    page_title="Seasonal Physiology Gene Database | Search Circadian & Seasonal Genes",
     page_icon="🧬",
     layout="wide"
 )
 
-# Database connection (uses Streamlit Secrets)
+
 @st.cache_resource
 def get_connection():
     return mysql.connector.connect(
@@ -24,231 +24,174 @@ def get_connection():
 
 conn = get_connection()
 
-# ── ONE-TIME SETUP (collapsed, run once then ignore) ────────────
-with st.expander("🔧 First-time setup (click to create tables & load data)"):
-    if st.button("Create Tables & Insert Data"):
-        cursor = conn.cursor()
+# Make sure community table exists (safe to re-run)
+_setup_cursor = conn.cursor()
+_setup_cursor.execute("""
+CREATE TABLE IF NOT EXISTS community_contributions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    gene_symbol VARCHAR(30) NOT NULL,
+    season_or_condition VARCHAR(20),
+    expression_level VARCHAR(10),
+    fold_change DECIMAL(6,3),
+    functional_role TEXT,
+    pathway VARCHAR(200),
+    tissue_type VARCHAR(150),
+    source_db VARCHAR(30),
+    source_reference VARCHAR(300),
+    contributor_name VARCHAR(100),
+    contributor_note TEXT,
+    submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)""")
+conn.commit()
 
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS genes (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            gene_symbol VARCHAR(20) UNIQUE NOT NULL,
-            full_name VARCHAR(200),
-            organism VARCHAR(50),
-            chromosome VARCHAR(10),
-            gene_type VARCHAR(50),
-            category VARCHAR(50)
-        )""")
-
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS seasons (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(20),
-            start_month INT,
-            end_month INT,
-            hemisphere CHAR(1)
-        )""")
-
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS gene_seasonal_function (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            gene_id INT,
-            season_id INT,
-            expression_level VARCHAR(10),
-            fold_change DECIMAL(6,3),
-            functional_role TEXT,
-            pathway VARCHAR(200),
-            biological_process VARCHAR(100),
-            tissue_type VARCHAR(100),
-            study_reference VARCHAR(200),
-            FOREIGN KEY (gene_id) REFERENCES genes(id),
-            FOREIGN KEY (season_id) REFERENCES seasons(id)
-        )""")
-        conn.commit()
-        st.success("✅ Tables created!")
-
-        seasons_data = [
-            ('Winter', 12, 2, 'N'), ('Spring', 3, 5, 'N'),
-            ('Summer', 6, 8, 'N'), ('Autumn', 9, 11, 'N'),
-        ]
-        cursor.executemany(
-            "INSERT IGNORE INTO seasons (name, start_month, end_month, hemisphere) VALUES (%s,%s,%s,%s)",
-            seasons_data
-        )
-        conn.commit()
-
-        genes_data = [
-            ('CLOCK', 'Circadian Locomotor Output Cycles Kaput', 'Homo sapiens', '4q12', 'protein-coding', 'Circadian'),
-            ('BMAL1', 'Brain and Muscle ARNT-Like 1', 'Homo sapiens', '11p15.3', 'protein-coding', 'Circadian'),
-            ('CRY1', 'Cryptochrome Circadian Regulator 1', 'Homo sapiens', '12q23.3', 'protein-coding', 'Circadian'),
-            ('VDR', 'Vitamin D Receptor', 'Homo sapiens', '12q13.11', 'protein-coding', 'Hormonal'),
-            ('AANAT', 'Aralkylamine N-Acetyltransferase', 'Homo sapiens', '17q25.1', 'protein-coding', 'Hormonal'),
-            ('IL6', 'Interleukin-6', 'Homo sapiens', '7p15.3', 'protein-coding', 'Immune'),
-            ('TNF', 'Tumor Necrosis Factor Alpha', 'Homo sapiens', '6p21.33', 'protein-coding', 'Immune'),
-            ('LEP', 'Leptin', 'Homo sapiens', '7q32.1', 'protein-coding', 'Metabolic'),
-            ('UCP1', 'Uncoupling Protein 1', 'Homo sapiens', '4q31.1', 'protein-coding', 'Metabolic'),
-            ('SLC6A4', 'Serotonin Transporter', 'Homo sapiens', '17q11.2', 'protein-coding', 'Mood/Brain'),
-        ]
-        cursor.executemany(
-            "INSERT IGNORE INTO genes (gene_symbol,full_name,organism,chromosome,gene_type,category) VALUES (%s,%s,%s,%s,%s,%s)",
-            genes_data
-        )
-        conn.commit()
-        st.success("✅ Genes inserted!")
-
-        expression_data = [
-            ('CLOCK', 'Winter', 'HIGH', 2.3, 'Drives melatonin production during long nights', 'Circadian Rhythm', 'Photoperiodism', 'Suprachiasmatic Nucleus', 'PMID:28192901'),
-            ('CLOCK', 'Spring', 'NORMAL', 1.1, 'Resets circadian phase as photoperiod lengthens', 'Circadian Rhythm', 'Phase Shift', 'Hypothalamus', 'PMID:30894687'),
-            ('CLOCK', 'Summer', 'LOW', 0.6, 'Short dark phase compresses CLOCK activity', 'Circadian Rhythm', 'Photoperiodism', 'Suprachiasmatic Nucleus', 'PMID:31076454'),
-            ('CLOCK', 'Autumn', 'NORMAL', 1.3, 'Prepares metabolic switch for winter', 'Circadian Rhythm', 'Seasonal Adapt.', 'Hypothalamus', 'PMID:29402395'),
-            ('VDR', 'Winter', 'LOW', 0.4, 'Reduced UV-B suppresses immune gene expression', 'Vitamin D / Immune', 'Immune Modulation', 'Immune cells, Bone', 'PMID:29480918'),
-            ('VDR', 'Spring', 'NORMAL', 1.1, 'Vitamin D recovery restores antimicrobials', 'Vitamin D Signaling', 'Innate Immunity', 'Skin, Lung', 'PMID:30087983'),
-            ('VDR', 'Summer', 'HIGH', 2.4, 'Peak UV-B drives calcium absorption', 'Vitamin D / Calcium', 'Bone Remodelling', 'Intestine, Bone, Skin', 'PMID:31152777'),
-            ('VDR', 'Autumn', 'NORMAL', 1.3, 'Stored Vitamin D buffers immune function', 'Vitamin D Signaling', 'Immune Maintenance', 'Liver, Kidney', 'PMID:28740998'),
-            ('IL6', 'Winter', 'HIGH', 3.1, 'Cold drives IL-6 surge, elevates inflammation', 'JAK-STAT / NF-kB', 'Acute Phase', 'Liver, Macrophages', 'PMID:27683120'),
-            ('IL6', 'Spring', 'NORMAL', 1.2, 'IL-6 normalises, allergy sensitisation begins', 'Allergic Inflammation', 'IgE Sensitisation', 'Mast cells', 'PMID:30412778'),
-            ('IL6', 'Summer', 'LOW', 0.6, 'Vitamin D suppresses IL-6 via IL-10 pathway', 'Th1/Th2 Balance', 'Immune Tolerance', 'T cells', 'PMID:29785994'),
-            ('IL6', 'Autumn', 'NORMAL', 1.4, 'Rising IL-6 prepares for winter pathogens', 'Pro-inflammatory', 'Immune Priming', 'Peripheral blood', 'PMID:28290498'),
-            ('LEP', 'Winter', 'HIGH', 2.8, 'Elevated leptin signals energy surplus', 'Leptin-Melanocortin', 'Energy Homeostasis', 'Adipose, Hypothalamus', 'PMID:26983140'),
-            ('LEP', 'Spring', 'NORMAL', 1.2, 'Leptin sensitivity restores, supports loss', 'Appetite Regulation', 'Caloric Restriction', 'Hypothalamus', 'PMID:29893683'),
-            ('LEP', 'Summer', 'LOW', 0.7, 'Heat suppresses appetite and leptin', 'Thermosensory/Leptin', 'Thermogenesis', 'Adipose, Hypothalamus', 'PMID:31268436'),
-            ('LEP', 'Autumn', 'NORMAL', 1.5, 'Rising leptin promotes fat deposition', 'PPAR-y / Adipogenesis', 'Lipid Storage', 'White Adipose', 'PMID:28290498'),
-            ('SLC6A4', 'Winter', 'HIGH', 2.2, 'High SERT clears serotonin - linked to SAD', 'Serotonergic', 'Mood Regulation', 'Raphe nuclei, PFC', 'PMID:26999033'),
-            ('SLC6A4', 'Spring', 'NORMAL', 1.1, 'SERT declines, serotonin rises, mood improves', 'Serotonergic', 'Antidepressant', 'Raphe nuclei', 'PMID:28965836'),
-            ('SLC6A4', 'Summer', 'LOW', 0.5, 'Minimum SERT drives positive mood', 'Serotonergic/Dopamine', 'Reward Processing', 'Striatum, PFC', 'PMID:31406378'),
-            ('SLC6A4', 'Autumn', 'NORMAL', 1.3, 'Rising SERT causes autumn melancholy', 'Serotonergic', 'Appetite & Mood', 'Gut, Brain', 'PMID:27683120'),
-            ('BMAL1', 'Winter', 'HIGH', 2.1, 'CLOCK/BMAL1 heterodimer activity peaks', 'Circadian Rhythm', 'Transcriptional Regulation', 'Liver, SCN', 'PMID:27238018'),
-            ('BMAL1', 'Spring', 'NORMAL', 1.0, 'Baseline BMAL1 levels re-establish', 'Circadian Rhythm', 'Metabolic Regulation', 'Liver', 'PMID:28192901'),
-            ('BMAL1', 'Summer', 'LOW', 0.7, 'Reduced BMAL1 dampens circadian amplitude', 'Circadian Rhythm / Inflammation', 'Immune Modulation', 'Peripheral blood', 'PMID:31406378'),
-            ('BMAL1', 'Autumn', 'NORMAL', 1.2, 'Recovery initiates winter metabolic state', 'Circadian Rhythm / Metabolism', 'Lipogenesis', 'Adipose tissue', 'PMID:30208476'),
-            ('CRY1', 'Winter', 'HIGH', 2.5, 'CRY1 feedback suppresses cortisol awakening', 'HPA Axis / Circadian', 'Cortisol Regulation', 'Adrenal Cortex', 'PMID:26431567'),
-            ('CRY1', 'Spring', 'NORMAL', 1.0, 'CRY1 repression weakens with longer photoperiod', 'HPA Axis', 'Circadian Phase', 'Adrenal Cortex', 'PMID:27863225'),
-            ('CRY1', 'Summer', 'LOW', 0.5, 'Minimal CRY1 repression, high amplitude clock', 'Circadian Rhythm', 'Photoperiodism', 'SCN', 'PMID:31076454'),
-            ('CRY1', 'Autumn', 'NORMAL', 1.2, 'CRY1 begins seasonal re-rise', 'Circadian / Serotonergic', 'Monoamine Regulation', 'Pineal Gland', 'PMID:28965836'),
-            ('TNF', 'Winter', 'HIGH', 2.6, 'Cold and low Vitamin D drive TNF-a elevation', 'NF-kB / TNF Receptor', 'Systemic Inflammation', 'Macrophages, Liver', 'PMID:29785994'),
-            ('TNF', 'Spring', 'NORMAL', 1.1, 'TNF-a normalises, residual inflammatory tone', 'Inflammatory Resolution', 'Tissue Repair', 'Neutrophils, Fibroblasts', 'PMID:30412778'),
-            ('TNF', 'Summer', 'LOW', 0.5, 'VDR-driven anti-inflammatory program suppresses TNF', 'VDR / Anti-inflammatory', 'Immune Suppression', 'T regulatory cells', 'PMID:31152777'),
-            ('TNF', 'Autumn', 'NORMAL', 1.4, 'TNF-a rises with UV decline', 'Innate Immunity / NF-kB', 'Pathogen Defense', 'Alveolar Macrophages', 'PMID:28740998'),
-            ('UCP1', 'Winter', 'HIGH', 3.5, 'Cold exposure maximally induces UCP1 in BAT', 'Sympathetic / PGC-1a', 'Thermogenesis', 'Brown Adipose Tissue', 'PMID:30894687'),
-            ('UCP1', 'Spring', 'NORMAL', 1.4, 'UCP1 activity decreases as temperatures rise', 'PPARy / UCP1', 'Adipose Remodeling', 'Brown Adipose Tissue', 'PMID:28192901'),
-            ('UCP1', 'Summer', 'LOW', 0.3, 'Minimal UCP1 activity in warm conditions', 'Thermoregulation', 'Heat Adaptation', 'Skin, Sweat Glands', 'PMID:29480918'),
-            ('UCP1', 'Autumn', 'NORMAL', 1.6, 'Cold-sensing channels reactivate UCP1 program', 'TRPM8 / Sympathetic Nervous', 'Cold Acclimation', 'Brown Adipose, BAT', 'PMID:30208476'),
-            ('AANAT', 'Winter', 'HIGH', 4.1, 'Long winter nights drive maximal AANAT activity', 'Melatonin Biosynthesis', 'Photoperiodic Signaling', 'Pineal Gland', 'PMID:26431567'),
-            ('AANAT', 'Spring', 'NORMAL', 1.5, 'Photoperiod lengthening reduces AANAT induction', 'Melatonin Biosynthesis', 'Circadian Adjustment', 'Pineal Gland', 'PMID:27863225'),
-            ('AANAT', 'Summer', 'LOW', 0.4, 'Short nights minimise AANAT activity', 'Melatonin / Reproductive Axis', 'Seasonal Reproduction', 'Pineal Gland, Gonads', 'PMID:31076454'),
-            ('AANAT', 'Autumn', 'NORMAL', 2.0, 'Nights lengthen, AANAT activity climbs', 'Melatonin Biosynthesis', 'Appetite & Reproduction', 'Pineal Gland', 'PMID:28965836'),
-        ]
-
-        for row in expression_data:
-            cursor.execute("SELECT id FROM genes WHERE gene_symbol = %s", (row[0],))
-            gene_id = cursor.fetchone()[0]
-            cursor.execute("SELECT id FROM seasons WHERE name = %s", (row[1],))
-            season_id = cursor.fetchone()[0]
-            cursor.execute("""
-                INSERT INTO gene_seasonal_function
-                (gene_id, season_id, expression_level, fold_change, functional_role, pathway, biological_process, tissue_type, study_reference)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            """, (gene_id, season_id, row[2], row[3], row[4], row[5], row[6], row[7], row[8]))
-
-        conn.commit()
-        st.success(f"✅ {len(expression_data)} expression records inserted! Setup complete.")
-        st.balloons()
-# ── END ONE-TIME SETUP ───────────────────────────────────────────
-
-# Header
+# ── Header ────────────────────────────────────────────────────────
 st.title("🧬 Seasonal Physiology Gene Database")
-st.markdown("**Search genes → See seasonal expression roles**")
+st.markdown("**A public, community-curated database of gene expression across seasons and photoperiods (short-day / long-day)**")
+st.caption("Research Project | Unnati Srivastava, University of Allahabad")
 st.divider()
 
-# Search + filter row
-col1, col2 = st.columns([3, 1])
-with col1:
-    gene_input = st.text_input("🔍 Search Gene Symbol",
+tab_search, tab_contribute, tab_browse = st.tabs(["🔍 Search", "✍️ Contribute Data", "🗂 Browse All Genes"])
+
+# ════════════════════════════════════════════════════════════════
+# TAB 1 — SEARCH
+# ════════════════════════════════════════════════════════════════
+with tab_search:
+    gene_input = st.text_input("Search Gene Symbol",
                                 placeholder="e.g. CLOCK, VDR, IL6, LEP, SLC6A4")
-with col2:
-    category_filter = st.selectbox("Category",
-                ["All", "Circadian", "Hormonal", "Immune", "Metabolic", "Mood/Brain"])
 
-# ── Search result for a specific gene ──────────────────────────
-if gene_input:
-    query = """
-        SELECT g.gene_symbol, g.full_name, g.category,
-               s.name AS season, gsf.expression_level,
-               gsf.fold_change, gsf.functional_role,
-               gsf.pathway, gsf.tissue_type, gsf.study_reference
-        FROM gene_seasonal_function gsf
-        JOIN genes g ON gsf.gene_id = g.id
-        JOIN seasons s ON gsf.season_id = s.id
-        WHERE g.gene_symbol = %s
-        ORDER BY FIELD(s.name, 'Winter','Spring','Summer','Autumn')
+    if gene_input:
+        symbol = gene_input.upper().strip()
+
+        # Curated seasonal data
+        query = """
+            SELECT g.gene_symbol, g.full_name, g.category,
+                   s.name AS season, gsf.expression_level,
+                   gsf.fold_change, gsf.functional_role,
+                   gsf.pathway, gsf.tissue_type, gsf.study_reference
+            FROM gene_seasonal_function gsf
+            JOIN genes g ON gsf.gene_id = g.id
+            JOIN seasons s ON gsf.season_id = s.id
+            WHERE g.gene_symbol = %s
+            ORDER BY FIELD(s.name, 'Winter','Spring','Summer','Autumn')
+        """
+        df = pd.read_sql(query, conn, params=[symbol])
+
+        if not df.empty:
+            st.success(f"✅ Curated data found: **{df['full_name'][0]}** | {df['category'][0]}")
+            col1, col2 = st.columns(2)
+            with col1:
+                fig = px.bar(df, x='season', y='fold_change', color='season',
+                    color_discrete_map={'Winter': '#60a5fa', 'Spring': '#4ade80',
+                                         'Summer': '#f59e0b', 'Autumn': '#f87171'},
+                    title=f"{symbol} — Seasonal Expression")
+                fig.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                st.plotly_chart(fig, use_container_width=True)
+            with col2:
+                icons = {'Winter': '❄️', 'Spring': '🌱', 'Summer': '☀️', 'Autumn': '🍂'}
+                expr_colors = {'HIGH': '🔴', 'NORMAL': '🟡', 'LOW': '🟢'}
+                for _, row in df.iterrows():
+                    st.markdown(f"**{icons[row['season']]} {row['season']}** — "
+                                f"{expr_colors[row['expression_level']]} {row['expression_level']} | "
+                                f"{row['fold_change']}x\n> {row['functional_role']}")
+            st.dataframe(df[['season','expression_level','fold_change','pathway','tissue_type','study_reference']],
+                         use_container_width=True)
+        else:
+            st.info(f"No curated data yet for '{symbol}'. Check the Contribute tab to add it, or Browse All Genes below.")
+
+        # Community contributions for this gene (always shown, clearly labeled)
+        comm_query = """
+            SELECT season_or_condition, expression_level, fold_change,
+                   functional_role, pathway, tissue_type, source_db,
+                   source_reference, contributor_name, submitted_at
+            FROM community_contributions
+            WHERE gene_symbol = %s
+            ORDER BY submitted_at DESC
+        """
+        comm_df = pd.read_sql(comm_query, conn, params=[symbol])
+        if not comm_df.empty:
+            st.divider()
+            st.markdown("### 🌍 Community-Contributed Data")
+            st.caption("Submitted directly by users — not independently verified by the project author.")
+            st.dataframe(comm_df, use_container_width=True)
+
+# ════════════════════════════════════════════════════════════════
+# TAB 2 — CONTRIBUTE
+# ════════════════════════════════════════════════════════════════
+with tab_contribute:
+    st.markdown("### Add Your Own Curated Data")
+    st.caption("Submissions are published immediately and are not reviewed before appearing publicly. "
+               "Please cite a real source (NCBI, CircaDB, PubMed, GEO, or UniProt) wherever possible.")
+
+    with st.form("contribute_form", clear_on_submit=True):
+        c1, c2 = st.columns(2)
+        with c1:
+            f_gene = st.text_input("Gene Symbol *", placeholder="e.g. PER2")
+            f_condition = st.selectbox("Season / Condition *",
+                ["Winter", "Spring", "Summer", "Autumn", "SD (Short-Day)", "LD (Long-Day)"])
+            f_expression = st.selectbox("Expression Level *", ["HIGH", "NORMAL", "LOW"])
+            f_fold = st.number_input("Fold Change", min_value=0.0, max_value=20.0, value=1.0, step=0.1)
+        with c2:
+            f_pathway = st.text_input("Pathway", placeholder="e.g. Circadian Rhythm")
+            f_tissue = st.text_input("Tissue Type", placeholder="e.g. Liver, SCN")
+            f_source_db = st.selectbox("Source Database *",
+                ["NCBI", "CircaDB", "PubMed", "GEO Datasets", "UniProt", "Other"])
+            f_source_ref = st.text_input("Source Reference *", placeholder="PMID, GEO accession, or URL")
+
+        f_role = st.text_area("Functional Role / Notes", placeholder="Describe the gene's seasonal/photoperiod role...")
+        f_contributor = st.text_input("Your Name (optional)", placeholder="Anonymous if left blank")
+
+        submitted = st.form_submit_button("Submit Contribution")
+
+        if submitted:
+            if not f_gene or not f_source_ref:
+                st.error("Gene Symbol and Source Reference are required.")
+            else:
+                ins_cursor = conn.cursor()
+                ins_cursor.execute("""
+                    INSERT INTO community_contributions
+                    (gene_symbol, season_or_condition, expression_level, fold_change,
+                     functional_role, pathway, tissue_type, source_db, source_reference,
+                     contributor_name)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                """, (
+                    f_gene.upper().strip(), f_condition, f_expression, f_fold,
+                    f_role, f_pathway, f_tissue, f_source_db, f_source_ref,
+                    f_contributor if f_contributor else "Anonymous"
+                ))
+                conn.commit()
+                st.success(f"✅ Thank you! Your data for {f_gene.upper()} is now live and publicly visible.")
+                st.balloons()
+
+    st.divider()
+    st.markdown("### Recent Community Submissions")
+    recent_query = """
+        SELECT gene_symbol, season_or_condition, expression_level, source_db,
+               contributor_name, submitted_at
+        FROM community_contributions
+        ORDER BY submitted_at DESC
+        LIMIT 15
     """
-    df = pd.read_sql(query, conn, params=[gene_input.upper()])
-
-    if not df.empty:
-        st.success(f"✅ Found: **{df['full_name'][0]}**  |  Category: {df['category'][0]}")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            fig = px.bar(df, x='season', y='fold_change',
-                        color='season',
-                        color_discrete_map={
-                            'Winter': '#60a5fa',
-                            'Spring': '#4ade80',
-                            'Summer': '#f59e0b',
-                            'Autumn': '#f87171'
-                        },
-                        title=f"{gene_input.upper()} — Seasonal Expression",
-                        labels={'fold_change': 'Fold Change', 'season': 'Season'})
-            fig.update_layout(showlegend=False,
-                            plot_bgcolor='rgba(0,0,0,0)',
-                            paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col2:
-            st.markdown("### Seasonal Roles")
-            icons = {'Winter': '❄️', 'Spring': '🌱', 'Summer': '☀️', 'Autumn': '🍂'}
-            expr_colors = {'HIGH': '🔴', 'NORMAL': '🟡', 'LOW': '🟢'}
-            for _, row in df.iterrows():
-                st.markdown(f"""
-**{icons[row['season']]} {row['season']}** — {expr_colors[row['expression_level']]} {row['expression_level']} | Fold: {row['fold_change']}x
-> {row['functional_role']}
-                """)
-
-        st.divider()
-        st.markdown("### 📊 Full Data Table")
-        st.dataframe(
-            df[['season', 'expression_level', 'fold_change',
-                'pathway', 'tissue_type', 'study_reference']],
-            use_container_width=True
-        )
-
-        csv = df.to_csv(index=False)
-        st.download_button(
-            label="⬇️ Download CSV",
-            data=csv,
-            file_name=f"{gene_input.upper()}_seasonal_data.csv",
-            mime="text/csv"
-        )
+    recent_df = pd.read_sql(recent_query, conn)
+    if not recent_df.empty:
+        st.dataframe(recent_df, use_container_width=True)
     else:
-        st.warning("Gene not found! Try: CLOCK, VDR, IL6, LEP, SLC6A4, BMAL1, CRY1, TNF, UCP1, AANAT")
+        st.caption("No community submissions yet. Be the first!")
 
-# ── All genes table (browse + filter) ───────────────────────────
-st.divider()
-st.markdown("### 🗂 All Genes in Database")
+# ════════════════════════════════════════════════════════════════
+# TAB 3 — BROWSE
+# ════════════════════════════════════════════════════════════════
+with tab_browse:
+    category_filter = st.selectbox("Filter by category",
+        ["All", "Circadian", "Hormonal", "Immune", "Metabolic", "Mood/Brain", "Other"])
 
-all_query = """
-    SELECT g.gene_symbol, g.full_name, g.category, g.chromosome, g.organism
-    FROM genes g
-    ORDER BY g.gene_symbol
-"""
-all_genes = pd.read_sql(all_query, conn)
-
-if category_filter != "All":
-    all_genes = all_genes[all_genes['category'] == category_filter]
-
-st.dataframe(all_genes, use_container_width=True)
+    all_query = "SELECT gene_symbol, full_name, category, chromosome, organism FROM genes ORDER BY gene_symbol"
+    all_genes = pd.read_sql(all_query, conn)
+    if category_filter != "All":
+        all_genes = all_genes[all_genes['category'] == category_filter]
+    st.dataframe(all_genes, use_container_width=True)
+    st.caption(f"Showing {len(all_genes)} genes")
 
 # ── Footer ───────────────────────────────────────────────────────
 st.divider()
-st.caption("Data sources: NCBI Gene · CircaDB · GEO Datasets · UniProt · PubMed references included per entry")
+st.caption("Data sources: NCBI Gene · CircaDB · GEO Datasets · UniProt · PubMed · Community contributions")
+st.caption("This is an open, publicly editable research database. Data accuracy of community contributions is not independently verified.")
