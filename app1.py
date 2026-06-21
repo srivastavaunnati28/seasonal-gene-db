@@ -2,6 +2,7 @@ import streamlit as st
 import mysql.connector
 import pandas as pd
 import plotly.express as px
+from ncbi_live_search import full_live_lookup
 
 # ── Page config (also helps with browser tab title for SEO) ────────
 st.set_page_config(
@@ -43,6 +44,23 @@ CREATE TABLE IF NOT EXISTS community_contributions (
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )""")
 conn.commit()
+
+# Make sure ncbi_cache table exists (stores live NCBI/GEO lookups so we don't
+# hit the API again for the same gene every time someone searches it)
+_setup_cursor.execute("""
+CREATE TABLE IF NOT EXISTS ncbi_cache (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    gene_symbol VARCHAR(30) NOT NULL UNIQUE,
+    full_name VARCHAR(500),
+    organism VARCHAR(150),
+    chromosome VARCHAR(50),
+    summary TEXT,
+    ncbi_url VARCHAR(300),
+    geo_datasets_json TEXT,
+    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)""")
+conn.commit()
+_setup_cursor.close()
 
 # ── Header ────────────────────────────────────────────────────────
 st.title("🧬 Seasonal Physiology Gene Database")
@@ -96,7 +114,85 @@ with tab_search:
             st.dataframe(df[['season','expression_level','fold_change','pathway','tissue_type','study_reference']],
                          use_container_width=True)
         else:
-            st.info(f"No curated data yet for '{symbol}'. Check the Contribute tab to add it, or Browse All Genes below.")
+            st.info(f"No curated data yet for '{symbol}'. Searching NCBI Gene & GEO live...")
+
+            # ── Live NCBI fallback (cache-first) ──────────────────────
+            cache_cursor = conn.cursor(dictionary=True)
+            cache_cursor.execute(
+                "SELECT * FROM ncbi_cache WHERE gene_symbol = %s", (symbol,)
+            )
+            cached = cache_cursor.fetchone()
+            cache_cursor.close()
+
+            import json as _json
+
+            if cached:
+                gene_info = {
+                    "symbol": cached["gene_symbol"],
+                    "full_name": cached["full_name"],
+                    "organism": cached["organism"],
+                    "chromosome": cached["chromosome"],
+                    "summary": cached["summary"],
+                    "ncbi_url": cached["ncbi_url"],
+                }
+                geo_datasets = _json.loads(cached["geo_datasets_json"] or "[]")
+                st.caption(f"📦 Loaded from cache (first fetched {cached['fetched_at']})")
+            else:
+                with st.spinner("Querying NCBI..."):
+                    live_result = full_live_lookup(symbol)
+                gene_info = live_result["gene_info"]
+                geo_datasets = live_result["geo_datasets"]
+
+                # Save to cache for next time, if we found something
+                if gene_info:
+                    save_cursor = conn.cursor()
+                    save_cursor.execute("""
+                        INSERT INTO ncbi_cache
+                            (gene_symbol, full_name, organism, chromosome, summary, ncbi_url, geo_datasets_json)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s)
+                        ON DUPLICATE KEY UPDATE
+                            full_name=VALUES(full_name), organism=VALUES(organism),
+                            chromosome=VALUES(chromosome), summary=VALUES(summary),
+                            ncbi_url=VALUES(ncbi_url), geo_datasets_json=VALUES(geo_datasets_json),
+                            fetched_at=CURRENT_TIMESTAMP
+                    """, (
+                        symbol, gene_info["full_name"], gene_info["organism"],
+                        gene_info["chromosome"], gene_info["summary"], gene_info["ncbi_url"],
+                        _json.dumps(geo_datasets)
+                    ))
+                    conn.commit()
+                    save_cursor.close()
+
+            if not gene_info:
+                st.error(
+                    f"'{symbol}' was not found in the local database or on NCBI Gene. "
+                    "Check the spelling, or add it yourself in the Contribute tab."
+                )
+            else:
+                st.success(f"🌐 Found via NCBI Gene: **{gene_info['symbol']}**")
+                gcol1, gcol2 = st.columns([2, 1])
+                with gcol1:
+                    st.write(f"**Full name:** {gene_info['full_name']}")
+                    st.write(f"**Organism:** {gene_info['organism']}")
+                    st.write(f"**Summary:** {gene_info['summary'] or 'No summary available.'}")
+                with gcol2:
+                    st.write(f"**Chromosome:** {gene_info['chromosome']}")
+                    st.markdown(f"[🔗 View full record on NCBI Gene]({gene_info['ncbi_url']})")
+
+                st.markdown("##### Related GEO datasets (Short-Day / Long-Day / Photoperiod)")
+                if geo_datasets:
+                    for ds in geo_datasets:
+                        with st.container(border=True):
+                            st.markdown(f"**{ds['accession']}** — {ds['title']}")
+                            st.caption(f"Organism: {ds['organism']} | Samples: {ds['n_samples']}")
+                            st.write(ds['summary'] + ("..." if ds['summary'] else ""))
+                            st.markdown(f"[View dataset on GEO]({ds['geo_url']})")
+                    st.caption(
+                        "⚠️ These are related GEO series, not auto-extracted numeric SD/LD expression values. "
+                        "Open a dataset above to inspect actual values, then add a curated entry via the Contribute tab."
+                    )
+                else:
+                    st.warning("No related short-day/long-day GEO datasets found for this gene.")
 
         # Community contributions for this gene (always shown, clearly labeled)
         comm_query = """
