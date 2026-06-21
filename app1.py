@@ -82,7 +82,6 @@ _setup_cursor.close()
 # ── Header ────────────────────────────────────────────────────────
 st.title("🧬 Seasonal Physiology Gene Database")
 st.markdown("**A public, community-curated database of gene expression across seasons and photoperiods (short-day / long-day)**")
-st.caption("Research Project | Unnati Srivastava, University of Allahabad")
 st.divider()
 
 tab_search, tab_contribute, tab_browse = st.tabs(["🔍 Search", "✍️ Contribute Data", "🗂 Browse All Genes"])
