@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import mysql.connector
 import pandas as pd
 import plotly.express as px
@@ -10,6 +11,22 @@ st.set_page_config(
     page_icon="🧬",
     layout="wide"
 )
+
+# ── Google Search Console verification ──────────────────────────────
+# 👉 PASTE YOUR REAL CODE BELOW between the quotes (the long string from
+# Google's "content" attribute), then save and push to GitHub.
+# Example: GOOGLE_SITE_VERIFICATION_CODE = "aB3xY9kLmN2pQrS7tUvWzZ1234567890"
+GOOGLE_SITE_VERIFICATION_CODE = "PASTE_YOUR_CODE_HERE"
+
+if GOOGLE_SITE_VERIFICATION_CODE and GOOGLE_SITE_VERIFICATION_CODE != "KOsyvCCGh2zIBj2KyAkO_R9PHv":
+    components.html(f"""
+    <script>
+        var meta = document.createElement('meta');
+        meta.name = "google-site-verification";
+        meta.content = "{GOOGLE_SITE_VERIFICATION_CODE}";
+        window.parent.document.getElementsByTagName('head')[0].appendChild(meta);
+    </script>
+    """, height=0, width=0)
 
 
 @st.cache_resource
