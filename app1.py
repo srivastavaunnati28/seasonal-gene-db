@@ -18,111 +18,36 @@ st.set_page_config(
 st.markdown("""
 <style>
     .stApp { background-color: #ffffff; }
-
-    .main-header {
-        border-bottom: 3px solid #1a5276;
-        padding-bottom: 12px;
-        margin-bottom: 4px;
-    }
-    .main-title {
-        font-size: 30px;
-        font-weight: 700;
-        color: #1a5276;
-        margin: 0;
-    }
-    .main-subtitle {
-        font-size: 15px;
-        color: #444;
-        margin-top: 4px;
-    }
-    .affil {
-        font-size: 13px;
-        color: #777;
-        font-style: italic;
-    }
-
-    /* Section headers like a journal */
+    .main-header { border-bottom: 3px solid #1a5276; padding-bottom: 12px; margin-bottom: 4px; }
+    .main-title { font-size: 30px; font-weight: 700; color: #1a5276; margin: 0; }
+    .main-subtitle { font-size: 15px; color: #444; margin-top: 4px; }
+    .affil { font-size: 13px; color: #777; font-style: italic; }
     .section-header {
-        font-size: 18px;
-        font-weight: 700;
-        color: #1a5276;
-        border-left: 4px solid #1a5276;
-        padding-left: 10px;
-        margin: 18px 0 10px 0;
+        font-size: 18px; font-weight: 700; color: #1a5276;
+        border-left: 4px solid #1a5276; padding-left: 10px; margin: 18px 0 10px 0;
     }
-
-    /* Result panel */
     .result-box {
-        background: #f8f9fa;
-        border: 1px solid #d0d7de;
-        border-radius: 6px;
-        padding: 18px 20px;
-        margin-bottom: 14px;
+        background: #f8f9fa; border: 1px solid #d0d7de; border-radius: 6px;
+        padding: 18px 20px; margin-bottom: 14px;
     }
-    .gene-name {
-        font-size: 24px;
-        font-weight: 800;
-        color: #0b3d61;
-    }
-    .gene-meta {
-        font-size: 13px;
-        color: #555;
-        margin-top: 2px;
-    }
-
-    /* Photoperiod comparison cards */
-    .photo-card {
-        border-radius: 6px;
-        padding: 14px;
-        border: 1px solid #d0d7de;
-        height: 100%;
-    }
+    .gene-name { font-size: 24px; font-weight: 800; color: #0b3d61; }
+    .gene-meta { font-size: 13px; color: #555; margin-top: 2px; }
+    .photo-card { border-radius: 6px; padding: 14px; border: 1px solid #d0d7de; height: 100%; }
     .photo-card-sd { background: #eef3fb; border-left: 4px solid #2c5f8a; }
     .photo-card-ld { background: #fff8ee; border-left: 4px solid #c97a1c; }
     .photo-card-season { background: #eef9f1; border-left: 4px solid #2e8b57; }
-
-    .photo-label {
-        font-weight: 700;
-        font-size: 14px;
-        color: #1a1a1a;
-        margin-bottom: 4px;
+    .photo-label { font-weight: 700; font-size: 14px; color: #1a1a1a; margin-bottom: 4px; }
+    .photo-value { font-size: 13px; color: #333; line-height: 1.5; }
+    .tier-badge {
+        display: inline-block; padding: 4px 12px; border-radius: 4px;
+        font-size: 12px; font-weight: 700; margin-bottom: 10px;
     }
-    .photo-value {
-        font-size: 13px;
-        color: #333;
-        line-height: 1.5;
-    }
-
-    /* Source badges - simple, clear, not blurry */
-    .source-tag {
-        display: inline-block;
-        background: #eef3fb;
-        border: 1px solid #b9cce4;
-        border-radius: 4px;
-        padding: 3px 10px;
-        margin: 2px 4px 2px 0;
-        font-size: 12px;
-        color: #1a5276;
-        font-weight: 600;
-    }
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        border-bottom: 2px solid #d0d7de;
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: #555;
-        font-weight: 600;
-    }
-    .stTabs [aria-selected="true"] {
-        color: #1a5276 !important;
-        border-bottom: 3px solid #1a5276 !important;
-    }
-
-    [data-testid="stDataFrame"] {
-        border: 1px solid #d0d7de;
-        border-radius: 6px;
-    }
+    .tier-1 { background: #d4edda; color: #155724; border: 1px solid #28a745; }
+    .tier-2 { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+    .stTabs [data-baseweb="tab-list"] { border-bottom: 2px solid #d0d7de; }
+    .stTabs [data-baseweb="tab"] { color: #555; font-weight: 600; }
+    .stTabs [aria-selected="true"] { color: #1a5276 !important; border-bottom: 3px solid #1a5276 !important; }
+    [data-testid="stDataFrame"] { border: 1px solid #d0d7de; border-radius: 6px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -141,7 +66,6 @@ def get_connection():
 conn = get_connection()
 setup_cursor = conn.cursor()
 
-# Community table
 setup_cursor.execute("""
 CREATE TABLE IF NOT EXISTS community_contributions (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -159,39 +83,22 @@ CREATE TABLE IF NOT EXISTS community_contributions (
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )""")
 
-# Add photoperiod_condition column to gene_seasonal_function if missing
-# (lets each curated row carry SD / LD / Intermediate alongside its season)
 try:
-    setup_cursor.execute("""
-        ALTER TABLE gene_seasonal_function
-        ADD COLUMN photoperiod_condition VARCHAR(5) DEFAULT NULL
-    """)
+    setup_cursor.execute("ALTER TABLE gene_seasonal_function ADD COLUMN photoperiod_condition VARCHAR(5) DEFAULT NULL")
     conn.commit()
 except mysql.connector.Error:
-    conn.rollback()  # column already exists, safe to ignore
+    conn.rollback()
 
 conn.commit()
 
-# Map each season to its typical photoperiod condition (used to backfill
-# photoperiod_condition where it hasn't been manually set yet)
-SEASON_TO_PHOTOPERIOD = {
-    "Winter": "SD",
-    "Summer": "LD",
-    "Spring": "INT",
-    "Autumn": "INT",
-}
+SEASON_TO_PHOTOPERIOD = {"Winter": "SD", "Summer": "LD", "Spring": "INT", "Autumn": "INT"}
 
 SOURCE_INFO = {
-    "NCBI": {"url": "https://www.ncbi.nlm.nih.gov/gene",
-             "desc": "Gene identity, chromosomal location, and official summaries."},
-    "CircaDB": {"url": "http://circadb.hogeneschlab.org/",
-                "desc": "Genome-wide circadian/diurnal expression across tissues."},
-    "PubMed": {"url": "https://pubmed.ncbi.nlm.nih.gov/",
-               "desc": "Peer-reviewed literature evidence for functional claims."},
-    "GEO Datasets": {"url": "https://www.ncbi.nlm.nih.gov/geo/",
-                      "desc": "Raw high-throughput expression datasets (microarray/RNA-seq)."},
-    "UniProt": {"url": "https://www.uniprot.org/",
-                "desc": "Protein function, pathways, post-translational modification."},
+    "NCBI": {"url": "https://www.ncbi.nlm.nih.gov/gene", "desc": "Gene identity, chromosomal location, and official summaries."},
+    "CircaDB": {"url": "http://circadb.hogeneschlab.org/", "desc": "Genome-wide circadian/diurnal expression across tissues."},
+    "PubMed": {"url": "https://pubmed.ncbi.nlm.nih.gov/", "desc": "Peer-reviewed literature evidence for functional claims."},
+    "GEO Datasets": {"url": "https://www.ncbi.nlm.nih.gov/geo/", "desc": "Raw high-throughput expression datasets (microarray/RNA-seq)."},
+    "UniProt": {"url": "https://www.uniprot.org/", "desc": "Protein function, pathways, post-translational modification."},
 }
 
 # ════════════════════════════════════════════════════════════════
@@ -204,19 +111,22 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-with st.expander("ℹ️ About this database — Short-Day (SD) vs Long-Day (LD) vs Season"):
+with st.expander("ℹ️ About this database — data tiers explained"):
     st.markdown("""
-    This database records gene expression along **two linked but distinct axes**:
+    Every gene in this database is searchable, but **not every gene has the same depth of data** —
+    and this database is explicit about that distinction rather than hiding it:
 
-    - **Photoperiod condition (SD / LD):** the actual physiological trigger — hours of light vs dark
-      a tissue or organism was exposed to in the underlying study. **SD** = short-day / winter-like
-      (~8h light), **LD** = long-day / summer-like (~16h light).
-    - **Season:** the calendar-based label conventionally used to describe when SD/LD-like conditions
-      occur naturally (Winter ≈ SD, Summer ≈ LD, Spring/Autumn ≈ intermediate).
+    - 🟢 **Tier 1 — Curated seasonal/photoperiod data:** A focused set of well-characterized genes
+      with manually verified fold-change values, expression levels, and functional roles across
+      seasons (Winter/Spring/Summer/Autumn) and photoperiod conditions (SD/LD), each backed by a
+      specific cited paper (PMID).
+    - 🟡 **Tier 2 — NCBI reference data:** All other genes in the database have real, automatically
+      fetched NCBI summaries and linked PubMed articles, but **do not yet have curated seasonal
+      fold-change values** — those numbers don't exist in any retrievable database and would need
+      to be manually extracted from specific experiments to be added responsibly.
 
-    Each gene's entry below shows **both axes side by side**, so the data can be read either way —
-    by season for general context, or by photoperiod condition for the underlying experimental
-    framing used in cited studies.
+    This separation exists so that no number is presented as scientific fact unless it is genuinely
+    sourced. Community contributors (see the Contribute tab) can help expand Tier 1 over time.
     """)
 
 st.markdown('<div class="section-header">🔗 Linked Data Sources</div>', unsafe_allow_html=True)
@@ -231,15 +141,16 @@ for col, (name, info) in zip(src_cols, SOURCE_INFO.items()):
 tab_search, tab_contribute, tab_browse = st.tabs(["🔍 Search", "✍️ Contribute Data", "🗂 Browse All Genes"])
 
 # ════════════════════════════════════════════════════════════════
-# TAB 1 — SEARCH (SD | LD | Season side-by-side)
+# TAB 1 — SEARCH (tiered: curated seasonal data OR NCBI reference)
 # ════════════════════════════════════════════════════════════════
 with tab_search:
     gene_input = st.text_input("Search Gene Symbol",
-                                placeholder="e.g. CLOCK, VDR, IL6, LEP, SLC6A4")
+                                placeholder="e.g. CLOCK, VDR, IL6, LEP, SLC6A4, or any gene in the database")
 
     if gene_input:
         symbol = gene_input.upper().strip()
 
+        # ── Check Tier 1: curated seasonal data ────────────────
         query = """
             SELECT g.gene_symbol, g.full_name, g.category,
                    s.name AS season, gsf.expression_level,
@@ -255,6 +166,8 @@ with tab_search:
         df = pd.read_sql(query, conn, params=[symbol])
 
         if not df.empty:
+            # ───────────── TIER 1 RESULT ─────────────
+            st.markdown('<span class="tier-badge tier-1">🟢 TIER 1 — Curated Seasonal Data</span>', unsafe_allow_html=True)
             st.markdown(f"""
             <div class="result-box">
                 <span class="gene-name">{symbol}</span>
@@ -262,93 +175,105 @@ with tab_search:
             </div>
             """, unsafe_allow_html=True)
 
-            # ── SD | LD | Season comparison row ──────────────────
-            # Backfill photoperiod_condition from season where not explicitly set
             df['photoperiod_condition'] = df.apply(
                 lambda r: r['photoperiod_condition'] if r['photoperiod_condition']
                 else SEASON_TO_PHOTOPERIOD.get(r['season'], 'INT'),
                 axis=1
             )
-
             sd_rows = df[df['photoperiod_condition'] == 'SD']
             ld_rows = df[df['photoperiod_condition'] == 'LD']
-            season_rows = df  # full season breakdown, all 4
 
             st.markdown('<div class="section-header">Photoperiod & Season Comparison</div>', unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
-
             with c1:
                 st.markdown('<div class="photo-card photo-card-sd">', unsafe_allow_html=True)
                 st.markdown('<div class="photo-label">❄️ Short-Day (SD)</div>', unsafe_allow_html=True)
                 if not sd_rows.empty:
                     for _, r in sd_rows.iterrows():
-                        st.markdown(f"""<div class="photo-value">
-                            <b>{r['expression_level']}</b> ({r['fold_change']}x)<br>
-                            {r['functional_role']}<br>
-                            <i>Tissue: {r['tissue_type']}</i>
-                        </div>""", unsafe_allow_html=True)
+                        st.markdown(f"""<div class="photo-value"><b>{r['expression_level']}</b> ({r['fold_change']}x)<br>{r['functional_role']}<br><i>Tissue: {r['tissue_type']}</i></div>""", unsafe_allow_html=True)
                 else:
-                    st.markdown('<div class="photo-value">No SD-specific data curated yet.</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="photo-value">No SD-specific data.</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-
             with c2:
                 st.markdown('<div class="photo-card photo-card-ld">', unsafe_allow_html=True)
                 st.markdown('<div class="photo-label">☀️ Long-Day (LD)</div>', unsafe_allow_html=True)
                 if not ld_rows.empty:
                     for _, r in ld_rows.iterrows():
-                        st.markdown(f"""<div class="photo-value">
-                            <b>{r['expression_level']}</b> ({r['fold_change']}x)<br>
-                            {r['functional_role']}<br>
-                            <i>Tissue: {r['tissue_type']}</i>
-                        </div>""", unsafe_allow_html=True)
+                        st.markdown(f"""<div class="photo-value"><b>{r['expression_level']}</b> ({r['fold_change']}x)<br>{r['functional_role']}<br><i>Tissue: {r['tissue_type']}</i></div>""", unsafe_allow_html=True)
                 else:
-                    st.markdown('<div class="photo-value">No LD-specific data curated yet.</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="photo-value">No LD-specific data.</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-
             with c3:
                 st.markdown('<div class="photo-card photo-card-season">', unsafe_allow_html=True)
                 st.markdown('<div class="photo-label">📅 By Season</div>', unsafe_allow_html=True)
                 season_icons = {'Winter':'❄️','Spring':'🌱','Summer':'☀️','Autumn':'🍂'}
-                for _, r in season_rows.iterrows():
-                    st.markdown(f"""<div class="photo-value">
-                        {season_icons.get(r['season'],'')} <b>{r['season']}</b>: {r['expression_level']} ({r['fold_change']}x)
-                    </div>""", unsafe_allow_html=True)
+                for _, r in df.iterrows():
+                    st.markdown(f"""<div class="photo-value">{season_icons.get(r['season'],'')} <b>{r['season']}</b>: {r['expression_level']} ({r['fold_change']}x)</div>""", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            # ── Bar chart, all 4 seasons ──────────────────────────
             fig = px.bar(df, x='season', y='fold_change', color='season',
-                color_discrete_map={'Winter': '#2c5f8a', 'Spring': '#2e8b57',
-                                     'Summer': '#c97a1c', 'Autumn': '#a14a4a'},
+                color_discrete_map={'Winter': '#2c5f8a', 'Spring': '#2e8b57', 'Summer': '#c97a1c', 'Autumn': '#a14a4a'},
                 title=f"{symbol} — Fold Change by Season")
-            fig.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white',
-                               font_color='#1a1a1a')
+            fig.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
             st.plotly_chart(fig, use_container_width=True)
 
             st.markdown('<div class="section-header">Full Data Table</div>', unsafe_allow_html=True)
-            st.dataframe(
-                df[['season', 'photoperiod_condition', 'expression_level', 'fold_change',
-                    'pathway', 'tissue_type', 'study_reference']].rename(columns={
-                    'season': 'Season', 'photoperiod_condition': 'Photoperiod',
-                    'expression_level': 'Expression', 'fold_change': 'Fold Change',
-                    'pathway': 'Pathway', 'tissue_type': 'Tissue', 'study_reference': 'Reference (PMID)'
-                }),
-                use_container_width=True
-            )
-        else:
-            st.info(f"No curated seasonal/photoperiod data yet for '{symbol}'. Use the Contribute tab to add it.")
+            st.dataframe(df[['season','photoperiod_condition','expression_level','fold_change','pathway','tissue_type','study_reference']]
+                .rename(columns={'season':'Season','photoperiod_condition':'Photoperiod','expression_level':'Expression',
+                                  'fold_change':'Fold Change','pathway':'Pathway','tissue_type':'Tissue','study_reference':'Reference (PMID)'}),
+                use_container_width=True)
 
-        # Community contributions
+        else:
+            # ───────────── TIER 2: check genes table ─────────────
+            gene_query = "SELECT id, gene_symbol, full_name, category, summary, ncbi_gene_id, uniprot_id FROM genes WHERE gene_symbol = %s"
+            gene_df = pd.read_sql(gene_query, conn, params=[symbol])
+
+            if not gene_df.empty:
+                row = gene_df.iloc[0]
+                st.markdown('<span class="tier-badge tier-2">🟡 TIER 2 — NCBI Reference Data</span>', unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="result-box">
+                    <span class="gene-name">{symbol}</span>
+                    <div class="gene-meta">{row['full_name']} &nbsp;·&nbsp; Category: {row['category']}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                st.caption("No curated seasonal fold-change data exists yet for this gene. "
+                           "Showing real NCBI/PubMed reference information instead.")
+
+                if row['summary']:
+                    st.markdown('<div class="section-header">NCBI Gene Summary</div>', unsafe_allow_html=True)
+                    st.write(row['summary'])
+
+                if row['ncbi_gene_id']:
+                    st.markdown(f"[View full NCBI Gene record →](https://www.ncbi.nlm.nih.gov/gene/{row['ncbi_gene_id']})")
+                if row['uniprot_id']:
+                    st.markdown(f"[View UniProt entry →](https://www.uniprot.org/uniprotkb/{row['uniprot_id']})")
+
+                pubmed_query = "SELECT pmid, title, journal, pub_year FROM gene_pubmed_links WHERE gene_id = %s ORDER BY pub_year DESC"
+                try:
+                    pubmed_df = pd.read_sql(pubmed_query, conn, params=[int(row['id'])])
+                except Exception:
+                    pubmed_df = pd.DataFrame()
+
+                if not pubmed_df.empty:
+                    st.markdown('<div class="section-header">📄 Linked PubMed Articles</div>', unsafe_allow_html=True)
+                    for _, p in pubmed_df.iterrows():
+                        st.markdown(f"- [{p['title']}](https://pubmed.ncbi.nlm.nih.gov/{p['pmid']}/) — *{p['journal']}* ({p['pub_year']})")
+                else:
+                    st.caption("No linked PubMed articles found yet for this gene.")
+
+                st.info("Want to help fill this gap? Use the **Contribute Data** tab to add curated "
+                        "seasonal/photoperiod values for this gene with a citation.")
+            else:
+                st.warning(f"'{symbol}' was not found in the database. Check spelling, or browse all available genes in the **Browse All Genes** tab.")
+
+        # ── Community contributions (always shown if present) ──
         comm_query = """
             SELECT season_or_condition AS "Season/Condition", expression_level AS "Expression",
                    fold_change AS "Fold Change", functional_role AS "Functional Role",
                    pathway AS "Pathway", tissue_type AS "Tissue", source_db AS "Source DB",
-                   source_reference AS "Reference", contributor_name AS "Contributor",
-                   submitted_at AS "Submitted"
-            FROM community_contributions
-            WHERE gene_symbol = %s
-            ORDER BY submitted_at DESC
+                   source_reference AS "Reference", contributor_name AS "Contributor", submitted_at AS "Submitted"
+            FROM community_contributions WHERE gene_symbol = %s ORDER BY submitted_at DESC
         """
         comm_df = pd.read_sql(comm_query, conn, params=[symbol])
         if not comm_df.empty:
@@ -376,15 +301,13 @@ with tab_contribute:
         with c2:
             f_pathway = st.text_input("Pathway", placeholder="e.g. Circadian Rhythm")
             f_tissue = st.text_input("Tissue Type", placeholder="e.g. Liver, SCN")
-            f_source_db = st.selectbox("Source Database *",
-                ["NCBI", "CircaDB", "PubMed", "GEO Datasets", "UniProt", "Other"])
+            f_source_db = st.selectbox("Source Database *", ["NCBI", "CircaDB", "PubMed", "GEO Datasets", "UniProt", "Other"])
             f_source_ref = st.text_input("Source Reference *", placeholder="PMID, GEO accession, or URL")
 
         f_role = st.text_area("Functional Role / Notes", placeholder="Describe the gene's seasonal/photoperiod role...")
         f_contributor = st.text_input("Your Name (optional)", placeholder="Anonymous if left blank")
 
         submitted = st.form_submit_button("Submit Contribution")
-
         if submitted:
             if not f_gene or not f_source_ref:
                 st.error("Gene Symbol and Source Reference are required.")
@@ -392,26 +315,19 @@ with tab_contribute:
                 ins_cursor = conn.cursor()
                 ins_cursor.execute("""
                     INSERT INTO community_contributions
-                    (gene_symbol, season_or_condition, expression_level, fold_change,
-                     functional_role, pathway, tissue_type, source_db, source_reference,
-                     contributor_name)
+                    (gene_symbol, season_or_condition, expression_level, fold_change, functional_role,
+                     pathway, tissue_type, source_db, source_reference, contributor_name)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                """, (
-                    f_gene.upper().strip(), f_condition, f_expression, f_fold,
-                    f_role, f_pathway, f_tissue, f_source_db, f_source_ref,
-                    f_contributor if f_contributor else "Anonymous"
-                ))
+                """, (f_gene.upper().strip(), f_condition, f_expression, f_fold, f_role, f_pathway,
+                      f_tissue, f_source_db, f_source_ref, f_contributor if f_contributor else "Anonymous"))
                 conn.commit()
                 st.success(f"Thank you. Your data for {f_gene.upper()} is now live and publicly visible.")
 
     st.markdown('<div class="section-header">Recent Community Submissions</div>', unsafe_allow_html=True)
     recent_query = """
-        SELECT gene_symbol AS "Gene", season_or_condition AS "Condition",
-               expression_level AS "Expression", source_db AS "Source",
-               contributor_name AS "Contributor", submitted_at AS "Submitted"
-        FROM community_contributions
-        ORDER BY submitted_at DESC
-        LIMIT 15
+        SELECT gene_symbol AS "Gene", season_or_condition AS "Condition", expression_level AS "Expression",
+               source_db AS "Source", contributor_name AS "Contributor", submitted_at AS "Submitted"
+        FROM community_contributions ORDER BY submitted_at DESC LIMIT 15
     """
     recent_df = pd.read_sql(recent_query, conn)
     if not recent_df.empty:
@@ -420,18 +336,26 @@ with tab_contribute:
         st.caption("No community submissions yet.")
 
 # ════════════════════════════════════════════════════════════════
-# TAB 3 — BROWSE
+# TAB 3 — BROWSE (shows tier for every gene)
 # ════════════════════════════════════════════════════════════════
 with tab_browse:
     category_filter = st.selectbox("Filter by category",
         ["All", "Circadian", "Hormonal", "Immune", "Metabolic", "Mood/Brain", "Other"])
 
-    all_query = "SELECT gene_symbol AS Symbol, full_name AS \"Full Name\", category AS Category, chromosome AS Chromosome, organism AS Organism FROM genes ORDER BY gene_symbol"
-    all_genes = pd.read_sql(all_query, conn)
+    browse_query = """
+        SELECT g.gene_symbol AS Symbol, g.full_name AS "Full Name", g.category AS Category,
+               g.chromosome AS Chromosome,
+               CASE WHEN gsf.id IS NOT NULL THEN 'Tier 1 (Curated)' ELSE 'Tier 2 (NCBI Reference)' END AS "Data Tier"
+        FROM genes g
+        LEFT JOIN gene_seasonal_function gsf ON gsf.gene_id = g.id
+        GROUP BY g.id, g.gene_symbol, g.full_name, g.category, g.chromosome, "Data Tier"
+        ORDER BY g.gene_symbol
+    """
+    all_genes = pd.read_sql(browse_query, conn)
     if category_filter != "All":
         all_genes = all_genes[all_genes['Category'] == category_filter]
     st.dataframe(all_genes, use_container_width=True)
-    st.caption(f"Showing {len(all_genes)} genes")
+    st.caption(f"Showing {len(all_genes)} genes — every gene is searchable in the Search tab regardless of tier.")
 
 # ════════════════════════════════════════════════════════════════
 # FOOTER
