@@ -1,32 +1,140 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import mysql.connector
 import pandas as pd
 import plotly.express as px
-from ncbi_live_search import full_live_lookup
 
-# ── Page config (also helps with browser tab title for SEO) ────────
+# ════════════════════════════════════════════════════════════════
+# PAGE CONFIG
+# ════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title="Seasonal Physiology Gene Database | Search Circadian & Seasonal Genes",
     page_icon="🧬",
     layout="wide"
 )
 
-# ── Google Search Console verification ──────────────────────────────
-# 👉 PASTE YOUR REAL CODE BELOW between the quotes (the long string from
-# Google's "content" attribute), then save and push to GitHub.
-# Example: GOOGLE_SITE_VERIFICATION_CODE = "aB3xY9kLmN2pQrS7tUvWzZ1234567890"
-GOOGLE_SITE_VERIFICATION_CODE = "PASTE_YOUR_CODE_HERE"
+# ════════════════════════════════════════════════════════════════
+# CUSTOM CSS — Dark glassmorphism theme
+# ════════════════════════════════════════════════════════════════
+st.markdown("""
+<style>
+    .stApp {
+        background: radial-gradient(circle at 20% 20%, #0f1b3d 0%, #050814 50%, #0a0118 100%);
+    }
 
-if GOOGLE_SITE_VERIFICATION_CODE and GOOGLE_SITE_VERIFICATION_CODE != "PASTE_YOUR_CODE_HERE":
-    components.html(f"""
-    <script>
-        var meta = document.createElement('meta');
-        meta.name = "google-site-verification";
-        meta.content = "{GOOGLE_SITE_VERIFICATION_CODE}";
-        window.parent.document.getElementsByTagName('head')[0].appendChild(meta);
-    </script>
-    """, height=0, width=0)
+    /* Glass card */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 212, 180, 0.25);
+        border-radius: 16px;
+        padding: 22px;
+        margin-bottom: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        transition: all 0.3s ease;
+    }
+    .glass-card:hover {
+        border-color: rgba(0, 212, 180, 0.6);
+        box-shadow: 0 8px 32px rgba(0, 212, 180, 0.15);
+    }
+
+    /* Header gradient title */
+    .hero-title {
+        font-size: 42px;
+        font-weight: 800;
+        background: linear-gradient(90deg, #00d4b4, #60a5fa, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 4px;
+        letter-spacing: -1px;
+    }
+    .hero-subtitle {
+        color: #94a3b8;
+        font-size: 16px;
+        margin-bottom: 20px;
+    }
+
+    /* Source badge buttons */
+    .source-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 24px;
+        padding: 6px 16px;
+        margin: 4px 6px 4px 0;
+        font-size: 13px;
+        color: #e2e8f0;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+    .source-badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 16px rgba(0,212,180,0.3);
+    }
+
+    /* Season pills */
+    .season-pill {
+        border-radius: 14px;
+        padding: 16px;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Tabs styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: rgba(255,255,255,0.03);
+        padding: 6px;
+        border-radius: 14px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 10px;
+        color: #94a3b8;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(90deg, rgba(0,212,180,0.2), rgba(96,165,250,0.2));
+        color: #00d4b4 !important;
+    }
+
+    /* Inputs */
+    .stTextInput input, .stSelectbox > div > div {
+        background: rgba(255,255,255,0.05) !important;
+        border: 1px solid rgba(0,212,180,0.3) !important;
+        border-radius: 10px !important;
+        color: #e2e8f0 !important;
+    }
+
+    /* Buttons */
+    .stButton button, .stFormSubmitButton button {
+        background: linear-gradient(90deg, #00d4b4, #00a896) !important;
+        color: #050814 !important;
+        font-weight: 700 !important;
+        border-radius: 10px !important;
+        border: none !important;
+        transition: all 0.25s ease !important;
+    }
+    .stButton button:hover, .stFormSubmitButton button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0,212,180,0.4) !important;
+    }
+
+    /* DataFrames */
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Caption / text */
+    p, .stMarkdown, .stCaption { color: #cbd5e1; }
+
+    /* Divider glow */
+    hr { border-color: rgba(0,212,180,0.2) !important; }
+</style>
+""", unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -42,7 +150,6 @@ def get_connection():
 
 conn = get_connection()
 
-# Make sure community table exists (safe to re-run)
 _setup_cursor = conn.cursor()
 _setup_cursor.execute("""
 CREATE TABLE IF NOT EXISTS community_contributions (
@@ -62,26 +169,54 @@ CREATE TABLE IF NOT EXISTS community_contributions (
 )""")
 conn.commit()
 
-# Make sure ncbi_cache table exists (stores live NCBI/GEO lookups so we don't
-# hit the API again for the same gene every time someone searches it)
-_setup_cursor.execute("""
-CREATE TABLE IF NOT EXISTS ncbi_cache (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    gene_symbol VARCHAR(30) NOT NULL UNIQUE,
-    full_name VARCHAR(500),
-    organism VARCHAR(150),
-    chromosome VARCHAR(50),
-    summary TEXT,
-    ncbi_url VARCHAR(300),
-    geo_datasets_json TEXT,
-    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)""")
-conn.commit()
-_setup_cursor.close()
+# ════════════════════════════════════════════════════════════════
+# SOURCE DATABASE INFO — used for clickable badges
+# ════════════════════════════════════════════════════════════════
+SOURCE_INFO = {
+    "NCBI": {
+        "icon": "🧬",
+        "url": "https://www.ncbi.nlm.nih.gov/gene",
+        "desc": "National Center for Biotechnology Information. Provides authoritative gene identity, chromosomal location, and official gene summaries for organisms including humans."
+    },
+    "CircaDB": {
+        "icon": "🕐",
+        "url": "http://circadb.hogeneschlab.org/",
+        "desc": "A curated database of genome-wide circadian/diurnal gene expression data across multiple tissues, used to identify genes with rhythmic expression patterns."
+    },
+    "PubMed": {
+        "icon": "📄",
+        "url": "https://pubmed.ncbi.nlm.nih.gov/",
+        "desc": "A free search engine for biomedical literature from MEDLINE, life science journals, and online books — the primary source of peer-reviewed evidence behind functional claims."
+    },
+    "GEO Datasets": {
+        "icon": "📊",
+        "url": "https://www.ncbi.nlm.nih.gov/geo/",
+        "desc": "Gene Expression Omnibus — a public repository of high-throughput functional genomics data, including microarray and RNA-seq experiments on seasonal/photoperiod conditions."
+    },
+    "UniProt": {
+        "icon": "🧪",
+        "url": "https://www.uniprot.org/",
+        "desc": "A comprehensive resource of protein sequence and functional information, including post-translational modifications and pathway involvement."
+    },
+}
 
-# ── Header ────────────────────────────────────────────────────────
-st.title("🧬 Seasonal Physiology Gene Database")
-st.markdown("**A public, community-curated database of gene expression across seasons and photoperiods (short-day / long-day)**")
+# ════════════════════════════════════════════════════════════════
+# HEADER
+# ════════════════════════════════════════════════════════════════
+st.markdown('<div class="hero-title">🧬 Seasonal Physiology Gene Database</div>', unsafe_allow_html=True)
+st.markdown('<div class="hero-subtitle">A public, community-curated database of gene expression across seasons and photoperiods (short-day / long-day)</div>', unsafe_allow_html=True)
+st.caption("M.Sc. Bioinformatics Research Project | Unnati Srivastava, University of Allahabad")
+
+# ── Clickable source badges with expandable info ──────────────────
+st.markdown("##### 🔗 Data Sources — click to learn more")
+badge_cols = st.columns(len(SOURCE_INFO))
+for col, (name, info) in zip(badge_cols, SOURCE_INFO.items()):
+    with col:
+        with st.popover(f"{info['icon']} {name}", use_container_width=True):
+            st.markdown(f"**{info['icon']} {name}**")
+            st.write(info["desc"])
+            st.markdown(f"[Visit {name} →]({info['url']})")
+
 st.divider()
 
 tab_search, tab_contribute, tab_browse = st.tabs(["🔍 Search", "✍️ Contribute Data", "🗂 Browse All Genes"])
@@ -96,7 +231,6 @@ with tab_search:
     if gene_input:
         symbol = gene_input.upper().strip()
 
-        # Curated seasonal data
         query = """
             SELECT g.gene_symbol, g.full_name, g.category,
                    s.name AS season, gsf.expression_level,
@@ -111,106 +245,45 @@ with tab_search:
         df = pd.read_sql(query, conn, params=[symbol])
 
         if not df.empty:
-            st.success(f"✅ Curated data found: **{df['full_name'][0]}** | {df['category'][0]}")
+            st.markdown(f"""
+            <div class="glass-card">
+                <h3 style="color:#00d4b4; margin:0;">✅ {df['full_name'][0]}</h3>
+                <p style="color:#94a3b8; margin:4px 0 0 0;">Category: {df['category'][0]} &nbsp;|&nbsp; Symbol: {symbol}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
             col1, col2 = st.columns(2)
             with col1:
                 fig = px.bar(df, x='season', y='fold_change', color='season',
                     color_discrete_map={'Winter': '#60a5fa', 'Spring': '#4ade80',
                                          'Summer': '#f59e0b', 'Autumn': '#f87171'},
                     title=f"{symbol} — Seasonal Expression")
-                fig.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+                fig.update_layout(
+                    showlegend=False,
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font_color='#e2e8f0',
+                    title_font_color='#e2e8f0'
+                )
                 st.plotly_chart(fig, use_container_width=True)
             with col2:
                 icons = {'Winter': '❄️', 'Spring': '🌱', 'Summer': '☀️', 'Autumn': '🍂'}
+                pill_colors = {'Winter': '#60a5fa22', 'Spring': '#4ade8022', 'Summer': '#f59e0b22', 'Autumn': '#f8717122'}
                 expr_colors = {'HIGH': '🔴', 'NORMAL': '🟡', 'LOW': '🟢'}
                 for _, row in df.iterrows():
-                    st.markdown(f"**{icons[row['season']]} {row['season']}** — "
-                                f"{expr_colors[row['expression_level']]} {row['expression_level']} | "
-                                f"{row['fold_change']}x\n> {row['functional_role']}")
+                    st.markdown(f"""
+                    <div class="season-pill" style="background:{pill_colors[row['season']]}; margin-bottom:8px;">
+                        <b>{icons[row['season']]} {row['season']}</b> —
+                        {expr_colors[row['expression_level']]} {row['expression_level']} | {row['fold_change']}x
+                        <br><span style="color:#94a3b8; font-size:13px;">{row['functional_role']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
             st.dataframe(df[['season','expression_level','fold_change','pathway','tissue_type','study_reference']],
                          use_container_width=True)
         else:
-            st.info(f"No curated data yet for '{symbol}'. Searching NCBI Gene & GEO live...")
+            st.info(f"No curated data yet for '{symbol}'. Check the Contribute tab to add it, or Browse All Genes below.")
 
-            # ── Live NCBI fallback (cache-first) ──────────────────────
-            cache_cursor = conn.cursor(dictionary=True)
-            cache_cursor.execute(
-                "SELECT * FROM ncbi_cache WHERE gene_symbol = %s", (symbol,)
-            )
-            cached = cache_cursor.fetchone()
-            cache_cursor.close()
-
-            import json as _json
-
-            if cached:
-                gene_info = {
-                    "symbol": cached["gene_symbol"],
-                    "full_name": cached["full_name"],
-                    "organism": cached["organism"],
-                    "chromosome": cached["chromosome"],
-                    "summary": cached["summary"],
-                    "ncbi_url": cached["ncbi_url"],
-                }
-                geo_datasets = _json.loads(cached["geo_datasets_json"] or "[]")
-                st.caption(f"📦 Loaded from cache (first fetched {cached['fetched_at']})")
-            else:
-                with st.spinner("Querying NCBI..."):
-                    live_result = full_live_lookup(symbol)
-                gene_info = live_result["gene_info"]
-                geo_datasets = live_result["geo_datasets"]
-
-                # Save to cache for next time, if we found something
-                if gene_info:
-                    save_cursor = conn.cursor()
-                    save_cursor.execute("""
-                        INSERT INTO ncbi_cache
-                            (gene_symbol, full_name, organism, chromosome, summary, ncbi_url, geo_datasets_json)
-                        VALUES (%s,%s,%s,%s,%s,%s,%s)
-                        ON DUPLICATE KEY UPDATE
-                            full_name=VALUES(full_name), organism=VALUES(organism),
-                            chromosome=VALUES(chromosome), summary=VALUES(summary),
-                            ncbi_url=VALUES(ncbi_url), geo_datasets_json=VALUES(geo_datasets_json),
-                            fetched_at=CURRENT_TIMESTAMP
-                    """, (
-                        symbol, gene_info["full_name"], gene_info["organism"],
-                        gene_info["chromosome"], gene_info["summary"], gene_info["ncbi_url"],
-                        _json.dumps(geo_datasets)
-                    ))
-                    conn.commit()
-                    save_cursor.close()
-
-            if not gene_info:
-                st.error(
-                    f"'{symbol}' was not found in the local database or on NCBI Gene. "
-                    "Check the spelling, or add it yourself in the Contribute tab."
-                )
-            else:
-                st.success(f"🌐 Found via NCBI Gene: **{gene_info['symbol']}**")
-                gcol1, gcol2 = st.columns([2, 1])
-                with gcol1:
-                    st.write(f"**Full name:** {gene_info['full_name']}")
-                    st.write(f"**Organism:** {gene_info['organism']}")
-                    st.write(f"**Summary:** {gene_info['summary'] or 'No summary available.'}")
-                with gcol2:
-                    st.write(f"**Chromosome:** {gene_info['chromosome']}")
-                    st.markdown(f"[🔗 View full record on NCBI Gene]({gene_info['ncbi_url']})")
-
-                st.markdown("##### Related GEO datasets (Short-Day / Long-Day / Photoperiod)")
-                if geo_datasets:
-                    for ds in geo_datasets:
-                        with st.container(border=True):
-                            st.markdown(f"**{ds['accession']}** — {ds['title']}")
-                            st.caption(f"Organism: {ds['organism']} | Samples: {ds['n_samples']}")
-                            st.write(ds['summary'] + ("..." if ds['summary'] else ""))
-                            st.markdown(f"[View dataset on GEO]({ds['geo_url']})")
-                    st.caption(
-                        "⚠️ These are related GEO series, not auto-extracted numeric SD/LD expression values. "
-                        "Open a dataset above to inspect actual values, then add a curated entry via the Contribute tab."
-                    )
-                else:
-                    st.warning("No related short-day/long-day GEO datasets found for this gene.")
-
-        # Community contributions for this gene (always shown, clearly labeled)
         comm_query = """
             SELECT season_or_condition, expression_level, fold_change,
                    functional_role, pathway, tissue_type, source_db,
@@ -303,7 +376,17 @@ with tab_browse:
     st.dataframe(all_genes, use_container_width=True)
     st.caption(f"Showing {len(all_genes)} genes")
 
-# ── Footer ───────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════
+# FOOTER
+# ════════════════════════════════════════════════════════════════
 st.divider()
-st.caption("Data sources: NCBI Gene · CircaDB · GEO Datasets · UniProt · PubMed · Community contributions")
-st.caption("This is an open, publicly editable research database. Data accuracy of community contributions is not independently verified.")
+st.markdown("""
+<div style="text-align:center; padding: 16px 0;">
+    <p style="color:#64748b; font-size:13px;">
+        Data sources: NCBI Gene · CircaDB · GEO Datasets · UniProt · PubMed · Community contributions
+    </p>
+    <p style="color:#475569; font-size:12px;">
+        This is an open, publicly editable research database. Data accuracy of community contributions is not independently verified.
+    </p>
+</div>
+""", unsafe_allow_html=True)
