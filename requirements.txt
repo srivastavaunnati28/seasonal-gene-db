@@ -1,5 +1,5 @@
-streamlit
-mysql-connector-python
-pandas
-plotly
-requests
+streamlit==1.38.0
+mysql-connector-python==9.0.0
+pandas==2.2.2
+plotly==5.24.1
+biopython==1.84
