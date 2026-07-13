@@ -201,7 +201,6 @@ st.markdown("""
 <div class="main-header">
     <p class="main-title">🧬 Seasonal Physiology Gene Database</p>
     <p class="main-subtitle">A photoperiod- and season-linked gene expression resource, cross-referenced with NCBI, CircaDB, PubMed, GEO Datasets, and UniProt.</p>
-    <p class="affil">Unnati Srivastava · M.Sc. Bioinformatics · University of Allahabad</p>
 </div>
 """, unsafe_allow_html=True)
 
