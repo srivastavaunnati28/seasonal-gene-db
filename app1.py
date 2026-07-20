@@ -195,6 +195,36 @@ SOURCE_INFO = {
 }
 
 # ════════════════════════════════════════════════════════════════
+# SIDEBAR — References
+# ════════════════════════════════════════════════════════════════
+with st.sidebar:
+    st.markdown('<div class="section-header" style="margin-top:0;">📚 References</div>', unsafe_allow_html=True)
+
+    with st.expander("Data source databases", expanded=True):
+        for name, info in SOURCE_INFO.items():
+            st.markdown(f"**{name}** — {info['desc']} [↗]({info['url']})")
+
+    with st.expander("Key literature", expanded=False):
+        st.markdown("""
+        1. Author A, Author B (Year). *Title of foundational paper on
+           photoperiod/seasonal gene expression*. Journal Name, Vol(Issue),
+           pages. [DOI](https://doi.org/xxxxx)
+        2. Author C et al. (Year). *Title of second reference paper*.
+           Journal Name, Vol(Issue), pages. [DOI](https://doi.org/xxxxx)
+        3. Author D (Year). *Title of methodology reference*.
+           Journal Name, Vol(Issue), pages. [DOI](https://doi.org/xxxxx)
+        """)
+        st.caption("Individual gene entries also cite a PMID/reference — see the "
+                   "'Reference (PMID)' column in each result table.")
+
+    st.caption("Suggested citation for this tool:")
+    st.code(
+        "Your Name (2026). Seasonal Physiology Gene Database.\n"
+        "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
+        language=None
+    )
+
+# ════════════════════════════════════════════════════════════════
 # HEADER
 # ════════════════════════════════════════════════════════════════
 st.markdown("""
@@ -439,3 +469,6 @@ with tab_browse:
 st.divider()
 st.caption("Data sources: NCBI Gene · CircaDB · GEO Datasets · UniProt · PubMed · Community contributions")
 st.caption("This is an open, publicly editable research database. Data accuracy of community contributions is not independently verified.")
+st.caption("📚 Full reference list available in the sidebar. Suggested citation: Your Name (2026). "
+           "*Seasonal Physiology Gene Database*. "
+           "seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app")
