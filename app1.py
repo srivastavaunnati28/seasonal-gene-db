@@ -204,15 +204,15 @@ with st.sidebar:
         for name, info in SOURCE_INFO.items():
             st.markdown(f"**{name}** — {info['desc']} [↗]({info['url']})")
 
- with st.expander("Key literature", expanded=False):
+    with st.expander("Key literature", expanded=False):
         st.markdown("""
-        1. Han, G., Wu, X., Xiao, X., Guo, T., Li, D., Zhang, H., ... & Chen, H. (2026). 
-           RhythmInsight: An Interactive Web Platform for Circadian and Diurnal Rhythmic Analysis and Visualization. 
+        1. Han, G., Wu, X., Xiao, X., Guo, T., Li, D., Zhang, H., ... & Chen, H. (2026).
+           RhythmInsight: An Interactive Web Platform for Circadian and Diurnal Rhythmic Analysis and Visualization.
            Journal of Biological Rhythms, 07487304261437377.
         2. Johnson, C. H., & Rust, M. J. (Eds.). (2021). Circadian rhythms in bacteria and microbiomes.
            Berlin: Springer International Publishing.
-        3. Glynn, E. F., Chen, J., & Mushegian, A. R. (2006). 
-           Detecting periodic patterns in unevenly spaced gene expression time series using Lomb–Scargle periodograms. 
+        3. Glynn, E. F., Chen, J., & Mushegian, A. R. (2006).
+           Detecting periodic patterns in unevenly spaced gene expression time series using Lomb–Scargle periodograms.
            Bioinformatics, 22(3), 310-316.
         """)
         st.caption("Individual gene entries also cite a PMID/reference — see the "
@@ -224,6 +224,7 @@ with st.sidebar:
         "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
         language=None
     )
+    
 
 # ════════════════════════════════════════════════════════════════
 # HEADER
