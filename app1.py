@@ -277,6 +277,54 @@ def evidence_badge(n_sources: int) -> str:
     return '<span class="evidence-badge evidence-single">Single curated entry</span>'
 
 
+@st.cache_data(ttl=60 * 60 * 12, show_spinner=False)
+def fetch_pubmed_photoperiod_papers(gene_symbol: str, max_results: int = 8):
+    """Live PubMed search for papers mentioning this gene alongside
+    photoperiod/seasonal/circadian terms. Used as a fallback whenever the
+    gene has no curated entry yet, so a search never comes back empty-handed.
+    Returns a list of dicts (title, authors, journal, year, url, pmid)."""
+    try:
+        term = (
+            f'{gene_symbol}[Title/Abstract] AND '
+            f'(photoperiod[Title/Abstract] OR "short day"[Title/Abstract] OR '
+            f'"long day"[Title/Abstract] OR seasonal[Title/Abstract] OR circadian[Title/Abstract])'
+        )
+        search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        params = {"db": "pubmed", "term": term, "retmode": "json",
+                  "retmax": max_results, "sort": "relevance"}
+        r = requests.get(search_url, params=params, timeout=6)
+        r.raise_for_status()
+        ids = r.json().get("esearchresult", {}).get("idlist", [])
+        if not ids:
+            return []
+
+        summary_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+        params2 = {"db": "pubmed", "id": ",".join(ids), "retmode": "json"}
+        r2 = requests.get(summary_url, params=params2, timeout=6)
+        r2.raise_for_status()
+        result = r2.json().get("result", {})
+
+        papers = []
+        for pmid in ids:
+            item = result.get(pmid)
+            if not item:
+                continue
+            authors = item.get("authors", [])
+            first_author = authors[0]["name"] if authors else "Unknown"
+            author_str = f"{first_author} et al." if len(authors) > 1 else first_author
+            papers.append({
+                "pmid": pmid,
+                "title": (item.get("title", "") or "Untitled").rstrip("."),
+                "journal": item.get("fulljournalname") or item.get("source", ""),
+                "year": (item.get("pubdate", "")[:4]) if item.get("pubdate") else "",
+                "authors": author_str,
+                "url": f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/",
+            })
+        return papers
+    except Exception:
+        return []
+
+
 # ════════════════════════════════════════════════════════════════
 # SIDEBAR — References
 # ════════════════════════════════════════════════════════════════
@@ -490,6 +538,46 @@ with tab_search:
                                 file_name=f"{symbol}_seasonal_data.csv", mime="text/csv")
         else:
             st.info(f"No curated seasonal/photoperiod data yet for '{symbol}'. Use the Contribute tab to add it.")
+
+            # ── Live NCBI identity check (even without curated data) ──
+            with st.spinner("Checking NCBI Gene..."):
+                ncbi_fallback = fetch_ncbi_gene_summary(symbol)
+            if ncbi_fallback:
+                st.markdown(f"""
+                <div class="xref-box">
+                    <span class="xref-label">Confirmed via NCBI:</span> {ncbi_fallback['official_name']}
+                    (Chromosome {ncbi_fallback['chromosome']})<br>
+                    <a href="{ncbi_fallback['ncbi_url']}" target="_blank">View NCBI Gene record →</a>
+                    &nbsp;|&nbsp;
+                    <a href="{uniprot_search_url(symbol)}" target="_blank">View on UniProt →</a>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # ── Live PubMed literature search fallback ─────────────
+            st.markdown('<div class="section-header">📖 Live Literature Search — PubMed</div>', unsafe_allow_html=True)
+            st.caption(
+                f"No curated entry exists yet for {symbol}, so here is real, current PubMed literature "
+                f"mentioning it alongside photoperiod, seasonal, or circadian terms — fetched live."
+            )
+            with st.spinner("Searching PubMed..."):
+                papers = fetch_pubmed_photoperiod_papers(symbol)
+
+            if papers:
+                for p in papers:
+                    st.markdown(f"""
+                    <div class="xref-box">
+                        <a href="{p['url']}" target="_blank"><b>{p['title']}</b></a><br>
+                        <span style="color:#555;">{p['authors']} &nbsp;·&nbsp; {p['journal']} &nbsp;·&nbsp; {p['year']}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                st.caption("Titles and links only, pulled live from PubMed — full abstracts are available via the links above.")
+            else:
+                st.markdown(f"""
+                <div class="xref-box">
+                    No PubMed papers directly link <b>{symbol}</b> to photoperiod/seasonal/circadian terms yet.<br>
+                    <a href="https://pubmed.ncbi.nlm.nih.gov/?term={symbol}" target="_blank">Search PubMed for {symbol} generally →</a>
+                </div>
+                """, unsafe_allow_html=True)
 
         # Community contributions
         comm_query = """
