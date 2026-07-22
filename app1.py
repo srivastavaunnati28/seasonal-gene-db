@@ -206,20 +206,20 @@ with st.sidebar:
 
     with st.expander("Key literature", expanded=False):
         st.markdown("""
-        1. Author A, Author B (Year). *Title of foundational paper on
-           photoperiod/seasonal gene expression*. Journal Name, Vol(Issue),
-           pages. [DOI](https://doi.org/xxxxx)
-        2. Author C et al. (Year). *Title of second reference paper*.
-           Journal Name, Vol(Issue), pages. [DOI](https://doi.org/xxxxx)
-        3. Author D (Year). *Title of methodology reference*.
-           Journal Name, Vol(Issue), pages. [DOI](https://doi.org/xxxxx)
-        """)
+        1. Han, G., Wu, X., Xiao, X., Guo, T., Li, D., Zhang, H., ... & Chen, H. (2026). 
+           RhythmInsight: An Interactive Web Platform for Circadian and Diurnal Rhythmic Analysis and Visualization. 
+           Journal of Biological Rhythms, 07487304261437377.
+        2. Johnson, C. H., & Rust, M. J. (Eds.). (2021). Circadian rhythms in bacteria and microbiomes.
+           Berlin: Springer International Publishing.
+        3. Glynn, E. F., Chen, J., & Mushegian, A. R. (2006). 
+           Detecting periodic patterns in unevenly spaced gene expression time series using Lomb–Scargle periodograms. 
+           Bioinformatics, 22(3), 310-316.
         st.caption("Individual gene entries also cite a PMID/reference — see the "
                    "'Reference (PMID)' column in each result table.")
 
     st.caption("Suggested citation for this tool:")
     st.code(
-        "Your Name (2026). Seasonal Physiology Gene Database.\n"
+        "S.Unnati (2026). Seasonal Physiology Gene Database.\n"
         "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
         language=None
     )
