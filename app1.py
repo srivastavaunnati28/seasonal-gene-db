@@ -2,6 +2,8 @@ import streamlit as st
 import mysql.connector
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+import requests
 
 # ════════════════════════════════════════════════════════════════
 # PAGE CONFIG
@@ -106,6 +108,33 @@ st.markdown("""
         font-weight: 600;
     }
 
+    /* Live cross-reference panel */
+    .xref-box {
+        background: #fbfbfb;
+        border: 1px dashed #b9cce4;
+        border-radius: 6px;
+        padding: 14px 16px;
+        margin: 10px 0 16px 0;
+        font-size: 13px;
+        color: #333;
+        line-height: 1.55;
+    }
+    .xref-label {
+        font-weight: 700;
+        color: #1a5276;
+        font-size: 13px;
+    }
+    .evidence-badge {
+        display: inline-block;
+        border-radius: 4px;
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        margin-left: 6px;
+    }
+    .evidence-single { background: #fdf0e3; color: #9c5a17; border: 1px solid #e6c393; }
+    .evidence-replicated { background: #e8f5ec; color: #1e7a3d; border: 1px solid #a9d9b8; }
+
     /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         border-bottom: 2px solid #d0d7de;
@@ -195,6 +224,59 @@ SOURCE_INFO = {
 }
 
 # ════════════════════════════════════════════════════════════════
+# LIVE NCBI CROSS-REFERENCE (via NCBI E-utilities)
+# ════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def fetch_ncbi_gene_summary(gene_symbol: str, organism: str = "Homo sapiens"):
+    """Look up a gene symbol against live NCBI Gene data.
+    Returns None on any failure (network, rate limit, no match) so the
+    rest of the app degrades gracefully rather than crashing."""
+    try:
+        search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        params = {
+            "db": "gene",
+            "term": f"{gene_symbol}[sym] AND {organism}[orgn]",
+            "retmode": "json",
+        }
+        r = requests.get(search_url, params=params, timeout=6)
+        r.raise_for_status()
+        ids = r.json().get("esearchresult", {}).get("idlist", [])
+        if not ids:
+            return None
+
+        gene_id = ids[0]
+        summary_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+        params2 = {"db": "gene", "id": gene_id, "retmode": "json"}
+        r2 = requests.get(summary_url, params=params2, timeout=6)
+        r2.raise_for_status()
+        data = r2.json().get("result", {}).get(gene_id, {})
+        if not data:
+            return None
+
+        return {
+            "gene_id": gene_id,
+            "official_symbol": data.get("name") or gene_symbol,
+            "official_name": data.get("description", ""),
+            "summary": data.get("summary", "") or "No summary text available from NCBI for this gene.",
+            "chromosome": data.get("chromosome", "N/A"),
+            "map_location": data.get("maplocation", "N/A"),
+            "ncbi_url": f"https://www.ncbi.nlm.nih.gov/gene/{gene_id}",
+        }
+    except Exception:
+        return None
+
+
+def uniprot_search_url(gene_symbol: str) -> str:
+    return f"https://www.uniprot.org/uniprotkb?query={gene_symbol}+AND+organism_id:9606"
+
+
+def evidence_badge(n_sources: int) -> str:
+    if n_sources >= 2:
+        return '<span class="evidence-badge evidence-replicated">Replicated across ≥2 entries</span>'
+    return '<span class="evidence-badge evidence-single">Single curated entry</span>'
+
+
+# ════════════════════════════════════════════════════════════════
 # SIDEBAR — References
 # ════════════════════════════════════════════════════════════════
 with st.sidebar:
@@ -224,7 +306,6 @@ with st.sidebar:
         "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
         language=None
     )
-    
 
 # ════════════════════════════════════════════════════════════════
 # HEADER
@@ -260,7 +341,9 @@ for col, (name, info) in zip(src_cols, SOURCE_INFO.items()):
             st.write(info["desc"])
             st.markdown(f"[Visit official site →]({info['url']})")
 
-tab_search, tab_contribute, tab_browse = st.tabs(["🔍 Search", "✍️ Contribute Data", "🗂 Browse All Genes"])
+tab_search, tab_compare, tab_contribute, tab_browse, tab_methods = st.tabs(
+    ["🔍 Search", "📊 Compare Genes", "✍️ Contribute Data", "🗂 Browse All Genes", "🧪 Methodology"]
+)
 
 # ════════════════════════════════════════════════════════════════
 # TAB 1 — SEARCH (SD | LD | Season side-by-side)
@@ -287,12 +370,41 @@ with tab_search:
         df = pd.read_sql(query, conn, params=[symbol])
 
         if not df.empty:
+            n_evidence = df['study_reference'].nunique() if 'study_reference' in df.columns else len(df)
             st.markdown(f"""
             <div class="result-box">
-                <span class="gene-name">{symbol}</span>
+                <span class="gene-name">{symbol}</span>{evidence_badge(n_evidence)}
                 <div class="gene-meta">{df['full_name'][0]} &nbsp;·&nbsp; Category: {df['category'][0]}</div>
             </div>
             """, unsafe_allow_html=True)
+
+            # ── Live NCBI cross-reference ─────────────────────────
+            with st.expander("🔬 Live NCBI cross-reference", expanded=False):
+                with st.spinner("Querying NCBI Gene..."):
+                    ncbi = fetch_ncbi_gene_summary(symbol)
+                if ncbi:
+                    st.markdown(f"""
+                    <div class="xref-box">
+                        <span class="xref-label">Official name:</span> {ncbi['official_name']}<br>
+                        <span class="xref-label">Chromosome:</span> {ncbi['chromosome']}
+                        &nbsp;·&nbsp; <span class="xref-label">Map location:</span> {ncbi['map_location']}<br>
+                        <span class="xref-label">NCBI summary:</span> {ncbi['summary']}<br><br>
+                        <a href="{ncbi['ncbi_url']}" target="_blank">View full NCBI Gene record →</a>
+                        &nbsp;|&nbsp;
+                        <a href="{uniprot_search_url(symbol)}" target="_blank">View on UniProt →</a>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="xref-box">
+                        Could not retrieve a live NCBI record for <b>{symbol}</b> automatically
+                        (symbol may be non-standard, organism-ambiguous, or NCBI was unreachable).
+                        You can check manually:<br>
+                        <a href="https://www.ncbi.nlm.nih.gov/gene/?term={symbol}" target="_blank">Search NCBI Gene →</a>
+                        &nbsp;|&nbsp;
+                        <a href="{uniprot_search_url(symbol)}" target="_blank">Search UniProt →</a>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             # ── SD | LD | Season comparison row ──────────────────
             # Backfill photoperiod_condition from season where not explicitly set
@@ -356,6 +468,8 @@ with tab_search:
                 title=f"{symbol} — Fold Change by Season")
             fig.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white',
                                font_color='#1a1a1a')
+            fig.update_yaxes(title_text="Fold Change (relative to baseline)")
+            fig.update_xaxes(title_text="Season")
             st.plotly_chart(fig, use_container_width=True)
 
             st.markdown('<div class="section-header">Full Data Table</div>', unsafe_allow_html=True)
@@ -368,6 +482,10 @@ with tab_search:
                 }),
                 use_container_width=True
             )
+
+            csv_bytes = df.to_csv(index=False).encode("utf-8")
+            st.download_button("⬇️ Download this gene's data as CSV", csv_bytes,
+                                file_name=f"{symbol}_seasonal_data.csv", mime="text/csv")
         else:
             st.info(f"No curated seasonal/photoperiod data yet for '{symbol}'. Use the Contribute tab to add it.")
 
@@ -389,7 +507,65 @@ with tab_search:
             st.dataframe(comm_df, use_container_width=True)
 
 # ════════════════════════════════════════════════════════════════
-# TAB 2 — CONTRIBUTE
+# TAB 2 — COMPARE GENES (multi-gene, side-by-side)
+# ════════════════════════════════════════════════════════════════
+with tab_compare:
+    st.markdown('<div class="section-header">Compare Multiple Genes</div>', unsafe_allow_html=True)
+    st.caption("Enter 2–6 gene symbols separated by commas to compare their seasonal fold-change profiles "
+               "on one chart — useful for spotting shared or opposing photoperiod responses across a pathway.")
+
+    compare_input = st.text_input("Gene symbols (comma-separated)",
+                                   placeholder="e.g. CLOCK, PER2, BMAL1, CRY1")
+
+    if compare_input:
+        symbols = [s.strip().upper() for s in compare_input.split(",") if s.strip()]
+        symbols = symbols[:6]  # cap to keep the chart readable
+
+        if len(symbols) < 2:
+            st.warning("Enter at least two gene symbols, separated by commas.")
+        else:
+            placeholders = ",".join(["%s"] * len(symbols))
+            compare_query = f"""
+                SELECT g.gene_symbol, s.name AS season, gsf.fold_change,
+                       gsf.expression_level, gsf.photoperiod_condition
+                FROM gene_seasonal_function gsf
+                JOIN genes g ON gsf.gene_id = g.id
+                JOIN seasons s ON gsf.season_id = s.id
+                WHERE g.gene_symbol IN ({placeholders})
+                ORDER BY g.gene_symbol, FIELD(s.name, 'Winter','Spring','Summer','Autumn')
+            """
+            cmp_df = pd.read_sql(compare_query, conn, params=symbols)
+
+            found = sorted(cmp_df['gene_symbol'].unique().tolist()) if not cmp_df.empty else []
+            missing = [s for s in symbols if s not in found]
+            if missing:
+                st.info(f"No curated data yet for: {', '.join(missing)}")
+
+            if not cmp_df.empty:
+                fig_cmp = px.bar(
+                    cmp_df, x='season', y='fold_change', color='gene_symbol',
+                    barmode='group',
+                    category_orders={'season': ['Winter', 'Spring', 'Summer', 'Autumn']},
+                    title="Fold Change by Season — Selected Genes",
+                    labels={'gene_symbol': 'Gene', 'season': 'Season', 'fold_change': 'Fold Change'}
+                )
+                fig_cmp.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                st.plotly_chart(fig_cmp, use_container_width=True)
+
+                st.markdown('<div class="section-header">Comparison Table</div>', unsafe_allow_html=True)
+                st.dataframe(
+                    cmp_df.rename(columns={
+                        'gene_symbol': 'Gene', 'season': 'Season',
+                        'fold_change': 'Fold Change', 'expression_level': 'Expression',
+                        'photoperiod_condition': 'Photoperiod'
+                    }),
+                    use_container_width=True
+                )
+    else:
+        st.caption("Try comparing core clock genes, e.g. **CLOCK, PER2, BMAL1, CRY1**.")
+
+# ════════════════════════════════════════════════════════════════
+# TAB 3 — CONTRIBUTE
 # ════════════════════════════════════════════════════════════════
 with tab_contribute:
     st.markdown('<div class="section-header">Add Your Own Curated Data</div>', unsafe_allow_html=True)
@@ -452,7 +628,7 @@ with tab_contribute:
         st.caption("No community submissions yet.")
 
 # ════════════════════════════════════════════════════════════════
-# TAB 3 — BROWSE
+# TAB 4 — BROWSE
 # ════════════════════════════════════════════════════════════════
 with tab_browse:
     category_filter = st.selectbox("Filter by category",
@@ -464,6 +640,72 @@ with tab_browse:
         all_genes = all_genes[all_genes['Category'] == category_filter]
     st.dataframe(all_genes, use_container_width=True)
     st.caption(f"Showing {len(all_genes)} genes")
+
+# ════════════════════════════════════════════════════════════════
+# TAB 5 — METHODOLOGY
+# ════════════════════════════════════════════════════════════════
+with tab_methods:
+    st.markdown('<div class="section-header">Methodology & Data Curation</div>', unsafe_allow_html=True)
+
+    st.markdown("""
+    **1. Scope**
+    This database catalogs gene expression changes associated with photoperiod
+    (day length) and season, focused on genes with known roles in circadian,
+    hormonal, immune, metabolic, or mood/brain physiology.
+
+    **2. Photoperiod condition assignment**
+    Each curated entry is labeled with a photoperiod condition — **SD** (Short-Day,
+    ~8h light, winter-like), **LD** (Long-Day, ~16h light, summer-like), or
+    **INT** (Intermediate, spring/autumn-like) — either taken directly from the
+    experimental design of the cited study, or, where a study reports only a
+    calendar season, backfilled using the conventional mapping:
+    Winter → SD, Summer → LD, Spring/Autumn → Intermediate.
+
+    **3. Expression level categories**
+    - **HIGH** — expression elevated relative to the study's baseline/control condition
+    - **NORMAL** — expression within the study's typical/baseline range
+    - **LOW** — expression reduced relative to baseline
+    
+    Fold change values, where reported, are shown alongside these categories and
+    should be read as *relative to the baseline defined in the cited source*, not
+    as standardized across studies.
+
+    **4. Evidence strength**
+    Gene entries display an evidence badge:
+    - **Single curated entry** — data drawn from one source/study
+    - **Replicated across ≥2 entries** — corroborated by multiple curated records
+    
+    This badge reflects curation coverage in this database only, not a formal
+    meta-analysis, and should not be read as a statement of scientific consensus.
+
+    **5. Live cross-referencing**
+    Gene symbols are checked against live NCBI Gene records (via NCBI E-utilities)
+    at search time to confirm official nomenclature and surface the official gene
+    summary. This is a validation aid, not a data source for the fold-change/
+    expression values themselves, which come from the curated database.
+
+    **6. Community contributions**
+    Data submitted via the Contribute tab is published immediately and is
+    **not independently verified** by the project author before appearing
+    publicly. It is visually and structurally separated from author-curated
+    entries throughout the app. Users citing this tool for research purposes
+    should verify community-submitted rows against the original source listed.
+
+    **7. Limitations**
+    - Organism is not uniformly controlled for across all entries; check the
+      "Organism" field in Browse All Genes where relevant.
+    - Tissue type varies by study and is not normalized.
+    - This is a curation and cross-referencing tool, not a primary data source —
+      always confirm critical values against the cited original publication or
+      database record before use in a manuscript.
+    """)
+
+    st.markdown('<div class="section-header">Suggested Citation</div>', unsafe_allow_html=True)
+    st.code(
+        "S.Unnati (2026). Seasonal Physiology Gene Database.\n"
+        "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
+        language=None
+    )
 
 # ════════════════════════════════════════════════════════════════
 # FOOTER
