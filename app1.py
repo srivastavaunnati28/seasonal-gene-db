@@ -204,7 +204,7 @@ with st.sidebar:
         for name, info in SOURCE_INFO.items():
             st.markdown(f"**{name}** — {info['desc']} [↗]({info['url']})")
 
-    with st.expander("Key literature", expanded=False):
+ with st.expander("Key literature", expanded=False):
         st.markdown("""
         1. Han, G., Wu, X., Xiao, X., Guo, T., Li, D., Zhang, H., ... & Chen, H. (2026). 
            RhythmInsight: An Interactive Web Platform for Circadian and Diurnal Rhythmic Analysis and Visualization. 
@@ -214,6 +214,7 @@ with st.sidebar:
         3. Glynn, E. F., Chen, J., & Mushegian, A. R. (2006). 
            Detecting periodic patterns in unevenly spaced gene expression time series using Lomb–Scargle periodograms. 
            Bioinformatics, 22(3), 310-316.
+        """)
         st.caption("Individual gene entries also cite a PMID/reference — see the "
                    "'Reference (PMID)' column in each result table.")
 
