@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import requests
+import time
 
 # ════════════════════════════════════════════════════════════════
 # PAGE CONFIG
@@ -341,8 +342,9 @@ for col, (name, info) in zip(src_cols, SOURCE_INFO.items()):
             st.write(info["desc"])
             st.markdown(f"[Visit official site →]({info['url']})")
 
-tab_search, tab_compare, tab_contribute, tab_browse, tab_methods = st.tabs(
-    ["🔍 Search", "📊 Compare Genes", "✍️ Contribute Data", "🗂 Browse All Genes", "🧪 Methodology"]
+tab_search, tab_compare, tab_contribute, tab_browse, tab_methods, tab_admin = st.tabs(
+    ["🔍 Search", "📊 Compare Genes", "✍️ Contribute Data", "🗂 Browse All Genes",
+     "🧪 Methodology", "🔐 Admin: Bulk Import"]
 )
 
 # ════════════════════════════════════════════════════════════════
@@ -706,6 +708,167 @@ with tab_methods:
         "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
         language=None
     )
+
+# ════════════════════════════════════════════════════════════════
+# TAB 6 — ADMIN: BULK IMPORT (password-protected)
+# ════════════════════════════════════════════════════════════════
+with tab_admin:
+    st.markdown('<div class="section-header">Bulk Import Genes from CSV</div>', unsafe_allow_html=True)
+
+    ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", None)
+
+    if not ADMIN_PASSWORD:
+        st.error(
+            "No ADMIN_PASSWORD is set in your Streamlit secrets, so this tab is disabled. "
+            "Add `ADMIN_PASSWORD = \"your-chosen-password\"` to your app's Secrets "
+            "(Streamlit Cloud → app settings → Secrets) and reload."
+        )
+    else:
+        pwd = st.text_input("Admin password", type="password")
+        if pwd != ADMIN_PASSWORD:
+            if pwd:
+                st.warning("Incorrect password.")
+            st.stop()
+
+        st.success("Authenticated. You can import gene data below.")
+        st.caption(
+            "Expected CSV format (like `All_288_genes.csv`): a `gene_name` column, "
+            "any number of individual replicate columns, and **mean_SD**, **mean_LD**, "
+            "and **log2FC** summary columns. Other formats can be adapted — ask if yours differs."
+        )
+
+        uploaded = st.file_uploader("Upload gene CSV", type=["csv"])
+
+        colA, colB, colC = st.columns(3)
+        with colA:
+            batch_category = st.selectbox(
+                "Category to assign to all imported genes",
+                ["Circadian", "Hormonal", "Immune", "Metabolic", "Mood/Brain", "Sensory", "Other"]
+            )
+        with colB:
+            batch_organism = st.text_input("Organism", value="Mus musculus")
+        with colC:
+            batch_tissue = st.text_input("Tissue type", value="Eyes")
+
+        batch_reference = st.text_input(
+            "Study reference (PMID, GEO accession, or short label)",
+            placeholder="e.g. GSE123456 or PMID 12345678"
+        )
+        autofill_ncbi = st.checkbox(
+            "Auto-fill official gene name via live NCBI lookup (slower — ~0.4s per gene)",
+            value=False
+        )
+
+        if uploaded is not None:
+            raw_df = pd.read_csv(uploaded)
+            st.write(f"Preview — {len(raw_df)} rows detected:")
+            st.dataframe(raw_df.head(10), use_container_width=True)
+
+            required_cols = {"gene_name", "mean_SD", "mean_LD", "log2FC"}
+            missing_cols = required_cols - set(raw_df.columns)
+
+            if missing_cols:
+                st.error(f"CSV is missing required columns: {', '.join(missing_cols)}")
+            else:
+                if st.button(f"Import all {len(raw_df)} genes into the database", type="primary"):
+                    ins_cursor = conn.cursor()
+
+                    # Look up season_id for Winter (=SD) and Summer (=LD)
+                    ins_cursor.execute("SELECT id, name FROM seasons WHERE name IN ('Winter','Summer')")
+                    season_ids = {name: sid for sid, name in ins_cursor.fetchall()}
+
+                    progress = st.progress(0.0, text="Starting import...")
+                    inserted, updated, skipped = 0, 0, 0
+                    total = len(raw_df)
+
+                    for i, row in raw_df.iterrows():
+                        symbol = str(row["gene_name"]).strip().upper()
+                        if not symbol:
+                            skipped += 1
+                            continue
+
+                        full_name = symbol
+                        chromosome = "N/A"
+                        if autofill_ncbi:
+                            ncbi = fetch_ncbi_gene_summary(symbol, organism=batch_organism)
+                            if ncbi:
+                                full_name = ncbi["official_name"] or symbol
+                                chromosome = ncbi["chromosome"] or "N/A"
+                            time.sleep(0.4)  # stay under NCBI's unauthenticated rate limit
+
+                        # Upsert into genes table
+                        ins_cursor.execute(
+                            "SELECT id FROM genes WHERE gene_symbol = %s", (symbol,)
+                        )
+                        existing = ins_cursor.fetchone()
+
+                        if existing:
+                            gene_id = existing[0]
+                            ins_cursor.execute(
+                                "UPDATE genes SET full_name=%s, category=%s, chromosome=%s, organism=%s WHERE id=%s",
+                                (full_name, batch_category, chromosome, batch_organism, gene_id)
+                            )
+                            updated += 1
+                        else:
+                            ins_cursor.execute(
+                                "INSERT INTO genes (gene_symbol, full_name, category, chromosome, organism) "
+                                "VALUES (%s,%s,%s,%s,%s)",
+                                (symbol, full_name, batch_category, chromosome, batch_organism)
+                            )
+                            gene_id = ins_cursor.lastrowid
+                            inserted += 1
+
+                        log2fc = float(row["log2FC"])
+
+                        def expression_from_log2fc(val):
+                            if val >= 0.5:
+                                return "HIGH"
+                            elif val <= -0.5:
+                                return "LOW"
+                            return "NORMAL"
+
+                        # Remove any prior rows for this gene+season+tissue combo to avoid duplicates on re-import
+                        for season_name, photoperiod, mean_col in [
+                            ("Winter", "SD", "mean_SD"), ("Summer", "LD", "mean_LD")
+                        ]:
+                            if season_name not in season_ids:
+                                continue
+                            season_id = season_ids[season_name]
+
+                            ins_cursor.execute(
+                                "DELETE FROM gene_seasonal_function "
+                                "WHERE gene_id=%s AND season_id=%s AND tissue_type=%s AND study_reference=%s",
+                                (gene_id, season_id, batch_tissue, batch_reference)
+                            )
+                            ins_cursor.execute(
+                                """INSERT INTO gene_seasonal_function
+                                   (gene_id, season_id, expression_level, fold_change,
+                                    functional_role, pathway, tissue_type, study_reference,
+                                    photoperiod_condition)
+                                   VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                                (
+                                    gene_id, season_id,
+                                    expression_from_log2fc(log2fc),
+                                    round(log2fc, 3),
+                                    f"Imported from bulk CSV — mean expression ({mean_col}) = {row[mean_col]}, log2FC = {round(log2fc,3)}",
+                                    "Imported dataset",
+                                    batch_tissue,
+                                    batch_reference,
+                                    photoperiod
+                                )
+                            )
+
+                        progress.progress((i + 1) / total, text=f"Importing {symbol} ({i+1}/{total})")
+
+                    conn.commit()
+                    progress.empty()
+                    st.success(
+                        f"Import complete — {inserted} new genes added, {updated} existing genes updated, "
+                        f"{skipped} rows skipped. Each imported gene now has Winter(SD)/Summer(LD) entries "
+                        f"for tissue '{batch_tissue}'."
+                    )
+                    st.info("Note: fold_change stored here is the CSV's **log2FC** value, not a linear fold change. "
+                             "This is noted in each entry's functional_role text for transparency.")
 
 # ════════════════════════════════════════════════════════════════
 # FOOTER
