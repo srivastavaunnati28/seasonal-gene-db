@@ -16,87 +16,106 @@ st.set_page_config(
 )
 
 # ════════════════════════════════════════════════════════════════
-# CSS — Clean white/light scientific journal style
+# CSS — NCBI-inspired colorful scientific database style
 # ════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-    .stApp { background-color: #ffffff; }
+    .stApp { background-color: #f5f8fb; }
 
+    /* NCBI-style top utility strip */
+    .ncbi-topstrip {
+        background: #205493;
+        color: #ffffff;
+        font-size: 12px;
+        padding: 5px 16px;
+        margin: -1rem -1rem 0 -1rem;
+        letter-spacing: .3px;
+    }
+
+    /* NCBI-style blue gradient banner */
     .main-header {
-        border-bottom: 3px solid #1a5276;
-        padding-bottom: 12px;
-        margin-bottom: 4px;
+        background: linear-gradient(90deg, #1a3a5c 0%, #2c6fad 55%, #3a8fc2 100%);
+        border-radius: 8px;
+        padding: 22px 26px;
+        margin: 10px 0 18px 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
     .main-title {
         font-size: 30px;
-        font-weight: 700;
-        color: #1a5276;
+        font-weight: 800;
+        color: #ffffff;
         margin: 0;
     }
     .main-subtitle {
-        font-size: 15px;
-        color: #444;
-        margin-top: 4px;
+        font-size: 14.5px;
+        color: #e3edf7;
+        margin-top: 6px;
     }
     .affil {
         font-size: 13px;
-        color: #777;
+        color: #cfe0f0;
         font-style: italic;
     }
 
-    /* Section headers like a journal */
+    /* Section headers - NCBI teal/orange accent style, rotating colors */
     .section-header {
         font-size: 18px;
-        font-weight: 700;
-        color: #1a5276;
-        border-left: 4px solid #1a5276;
-        padding-left: 10px;
-        margin: 18px 0 10px 0;
+        font-weight: 800;
+        color: #ffffff;
+        background: #2c6fad;
+        border-left: 6px solid #ff8c1a;
+        padding: 8px 14px;
+        margin: 20px 0 12px 0;
+        border-radius: 4px;
     }
 
-    /* Result panel */
+    /* Result panel - NCBI record card look */
     .result-box {
-        background: #f8f9fa;
-        border: 1px solid #d0d7de;
-        border-radius: 6px;
-        padding: 18px 20px;
-        margin-bottom: 14px;
+        background: linear-gradient(180deg, #eaf3fc 0%, #ffffff 100%);
+        border: 1px solid #a9c9e8;
+        border-top: 5px solid #205493;
+        border-radius: 8px;
+        padding: 18px 22px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 4px rgba(32,84,147,0.12);
     }
     .gene-name {
-        font-size: 24px;
-        font-weight: 800;
+        font-size: 26px;
+        font-weight: 900;
         color: #0b3d61;
+        letter-spacing: .5px;
     }
     .gene-meta {
-        font-size: 13px;
-        color: #555;
-        margin-top: 2px;
+        font-size: 13.5px;
+        color: #35526e;
+        margin-top: 4px;
     }
 
-    /* Photoperiod comparison cards */
+    /* Photoperiod comparison cards - bright NCBI-esque trio */
     .photo-card {
-        border-radius: 6px;
+        border-radius: 8px;
         padding: 14px;
         border: 1px solid #d0d7de;
         height: 100%;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
-    .photo-card-sd { background: #eef3fb; border-left: 4px solid #2c5f8a; }
-    .photo-card-ld { background: #fff8ee; border-left: 4px solid #c97a1c; }
-    .photo-card-season { background: #eef9f1; border-left: 4px solid #2e8b57; }
+    .photo-card-sd { background: #e3edfb; border-top: 5px solid #1f5fa8; }
+    .photo-card-ld { background: #fff2df; border-top: 5px solid #e8820c; }
+    .photo-card-season { background: #e4f7ea; border-top: 5px solid #1f9d55; }
 
     .photo-label {
-        font-weight: 700;
-        font-size: 14px;
+        font-weight: 800;
+        font-size: 14.5px;
         color: #1a1a1a;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
     }
     .photo-value {
         font-size: 13px;
-        color: #333;
-        line-height: 1.5;
+        color: #2b2b2b;
+        line-height: 1.55;
     }
 
-    /* Source badges - simple, clear, not blurry */
+    /* Source badges - colorful NCBI database chips */
     .source-tag {
         display: inline-block;
         background: #eef3fb;
@@ -106,55 +125,83 @@ st.markdown("""
         margin: 2px 4px 2px 0;
         font-size: 12px;
         color: #1a5276;
-        font-weight: 600;
+        font-weight: 700;
     }
 
     /* Live cross-reference panel */
     .xref-box {
-        background: #fbfbfb;
-        border: 1px dashed #b9cce4;
+        background: #ffffff;
+        border: 1px solid #cfe0f0;
+        border-left: 5px solid #205493;
         border-radius: 6px;
         padding: 14px 16px;
         margin: 10px 0 16px 0;
         font-size: 13px;
-        color: #333;
-        line-height: 1.55;
+        color: #263a4d;
+        line-height: 1.6;
     }
     .xref-label {
-        font-weight: 700;
-        color: #1a5276;
+        font-weight: 800;
+        color: #205493;
         font-size: 13px;
     }
     .evidence-badge {
         display: inline-block;
-        border-radius: 4px;
-        padding: 2px 8px;
+        border-radius: 12px;
+        padding: 3px 10px;
         font-size: 11px;
-        font-weight: 700;
-        margin-left: 6px;
+        font-weight: 800;
+        margin-left: 8px;
     }
     .evidence-single { background: #fdf0e3; color: #9c5a17; border: 1px solid #e6c393; }
-    .evidence-replicated { background: #e8f5ec; color: #1e7a3d; border: 1px solid #a9d9b8; }
+    .evidence-replicated { background: #e0f5e6; color: #157a3d; border: 1px solid #9edab3; }
 
-    /* Tabs */
+    /* Tabs - NCBI blue underline style */
     .stTabs [data-baseweb="tab-list"] {
-        border-bottom: 2px solid #d0d7de;
+        border-bottom: 3px solid #cfe0f0;
+        gap: 4px;
     }
     .stTabs [data-baseweb="tab"] {
-        color: #555;
-        font-weight: 600;
+        color: #35526e;
+        font-weight: 700;
+        background: #eaf3fc;
+        border-radius: 6px 6px 0 0;
+        padding: 8px 14px;
     }
     .stTabs [aria-selected="true"] {
-        color: #1a5276 !important;
-        border-bottom: 3px solid #1a5276 !important;
+        color: #ffffff !important;
+        background: #205493 !important;
+        border-bottom: 3px solid #ff8c1a !important;
     }
 
     [data-testid="stDataFrame"] {
-        border: 1px solid #d0d7de;
-        border-radius: 6px;
+        border: 1px solid #a9c9e8;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+
+    /* Buttons - NCBI orange accent */
+    .stButton>button, .stDownloadButton>button, .stFormSubmitButton>button {
+        background: #205493 !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 5px !important;
+        font-weight: 700 !important;
+    }
+    .stButton>button:hover, .stDownloadButton>button:hover, .stFormSubmitButton>button:hover {
+        background: #ff8c1a !important;
+        color: #1a1a1a !important;
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background: #eef3fb;
+        border-right: 3px solid #205493;
     }
 </style>
 """, unsafe_allow_html=True)
+
+st.markdown('<div class="ncbi-topstrip">🧬 National-style research resource · cross-referenced live with NCBI, PubMed, CircaDB, GEO &amp; UniProt</div>', unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -513,8 +560,8 @@ with tab_search:
 
             # ── Bar chart, all 4 seasons ──────────────────────────
             fig = px.bar(df, x='season', y='fold_change', color='season',
-                color_discrete_map={'Winter': '#2c5f8a', 'Spring': '#2e8b57',
-                                     'Summer': '#c97a1c', 'Autumn': '#a14a4a'},
+                color_discrete_map={'Winter': '#1f5fa8', 'Spring': '#1f9d55',
+                                     'Summer': '#e8820c', 'Autumn': '#b0453f'},
                 title=f"{symbol} — Fold Change by Season")
             fig.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white',
                                font_color='#1a1a1a')
