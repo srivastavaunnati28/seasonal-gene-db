@@ -103,41 +103,6 @@ st.markdown("""
     .photo-card-ld { background: #fff2df; border-top: 5px solid #e8820c; }
     .photo-card-season { background: #e4f7ea; border-top: 5px solid #1f9d55; }
 
-    /* Live-estimate cards (no curated data yet) — same trio but dashed + badged
-       so they are never confused with author-curated numeric entries */
-    .photo-card-live {
-        border-radius: 8px;
-        padding: 14px;
-        border: 2px dashed #7a7a7a;
-        height: 100%;
-        background: #fbfbfb;
-    }
-    .photo-card-live-sd { border-color: #1f5fa8; background: #eef4fb; }
-    .photo-card-live-ld { border-color: #e8820c; background: #fff7ec; }
-    .photo-card-live-season { border-color: #1f9d55; background: #eef9f1; }
-
-    .live-badge {
-        display: inline-block;
-        background: #d9363e;
-        color: #fff;
-        font-size: 10px;
-        font-weight: 800;
-        letter-spacing: .3px;
-        padding: 2px 8px;
-        border-radius: 10px;
-        margin-bottom: 8px;
-    }
-    .live-paper {
-        font-size: 12.5px;
-        color: #263a4d;
-        margin: 6px 0;
-        line-height: 1.45;
-        border-bottom: 1px dashed #d0d7de;
-        padding-bottom: 6px;
-    }
-    .live-paper a { color: #1a5276; font-weight: 700; }
-    .live-empty { font-size: 12.5px; color: #777; font-style: italic; }
-
     .photo-label {
         font-weight: 800;
         font-size: 14.5px;
@@ -351,32 +316,6 @@ def fetch_ncbi_gene_summary(gene_symbol: str, organism: str = "Homo sapiens"):
 
 def uniprot_search_url(gene_symbol: str) -> str:
     return f"https://www.uniprot.org/uniprotkb?query={gene_symbol}+AND+organism_id:9606"
-
-
-def bucket_papers_by_photoperiod(papers):
-    """Sort live PubMed papers into SD / LD / Season buckets using simple
-    keyword matches in the title. This is a literature-signal heuristic —
-    NOT a source of quantitative expression values — used only to populate
-    the SD/LD/Season card layout for genes with no curated database entry.
-    A paper can land in more than one bucket if its title matches multiple
-    keyword groups."""
-    sd_terms = ["short day", "short-day", "short-photoperiod", "winter"]
-    ld_terms = ["long day", "long-day", "long-photoperiod", "summer"]
-    season_terms = ["season", "seasonal", "photoperiod", "circadian"]
-
-    buckets = {"SD": [], "LD": [], "SEASON": []}
-    for p in papers:
-        title_l = p["title"].lower()
-        matched_specific = False
-        if any(t in title_l for t in sd_terms):
-            buckets["SD"].append(p)
-            matched_specific = True
-        if any(t in title_l for t in ld_terms):
-            buckets["LD"].append(p)
-            matched_specific = True
-        if any(t in title_l for t in season_terms) or not matched_specific:
-            buckets["SEASON"].append(p)
-    return buckets
 
 
 def evidence_badge(n_sources: int) -> str:
@@ -645,81 +584,31 @@ with tab_search:
             st.download_button("⬇️ Download this gene's data as CSV", csv_bytes,
                                 file_name=f"{symbol}_seasonal_data.csv", mime="text/csv")
         else:
-            st.info(f"No curated seasonal/photoperiod data yet for '{symbol}'. Showing a live-fetched estimate below "
-                    f"— use the Contribute tab to add verified curated data for this gene.")
+            st.info(f"No curated seasonal/photoperiod data yet for '{symbol}'. Use the Contribute tab to add it.")
 
             # ── Live NCBI identity check (even without curated data) ──
             with st.spinner("Checking NCBI Gene..."):
                 ncbi_fallback = fetch_ncbi_gene_summary(symbol)
-
-            gene_display_name = ncbi_fallback['official_name'] if ncbi_fallback else symbol
             if ncbi_fallback:
                 st.markdown(f"""
-                <div class="result-box">
-                    <span class="gene-name">{symbol}</span>
-                    <span class="live-badge">🔴 LIVE — NOT CURATED</span>
-                    <div class="gene-meta">{ncbi_fallback['official_name']} &nbsp;·&nbsp;
-                        Chromosome {ncbi_fallback['chromosome']} &nbsp;·&nbsp; Map location {ncbi_fallback['map_location']}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                st.markdown(f"""
                 <div class="xref-box">
-                    <span class="xref-label">NCBI summary:</span> {ncbi_fallback['summary']}<br><br>
-                    <a href="{ncbi_fallback['ncbi_url']}" target="_blank">View full NCBI Gene record →</a>
+                    <span class="xref-label">Confirmed via NCBI:</span> {ncbi_fallback['official_name']}
+                    (Chromosome {ncbi_fallback['chromosome']})<br>
+                    <a href="{ncbi_fallback['ncbi_url']}" target="_blank">View NCBI Gene record →</a>
                     &nbsp;|&nbsp;
                     <a href="{uniprot_search_url(symbol)}" target="_blank">View on UniProt →</a>
                 </div>
                 """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="result-box">
-                    <span class="gene-name">{symbol}</span>
-                    <span class="live-badge">🔴 LIVE — NOT CURATED</span>
-                    <div class="gene-meta">Could not confirm this symbol against live NCBI Gene
-                        (may be non-standard or organism-ambiguous).
-                        <a href="https://www.ncbi.nlm.nih.gov/gene/?term={symbol}" target="_blank">Search NCBI Gene →</a></div>
-                </div>
-                """, unsafe_allow_html=True)
 
-            # ── Live PubMed search, then bucket into SD / LD / Season cards ──
-            with st.spinner("Searching PubMed for photoperiod/seasonal literature..."):
-                papers = fetch_pubmed_photoperiod_papers(symbol, max_results=15)
-            buckets = bucket_papers_by_photoperiod(papers)
-
-            st.markdown('<div class="section-header">Photoperiod & Season Comparison — Live Estimate</div>', unsafe_allow_html=True)
+            # ── Live PubMed literature search fallback ─────────────
+            st.markdown('<div class="section-header">📖 Live Literature Search — PubMed</div>', unsafe_allow_html=True)
             st.caption(
-                "⚠️ These cards are built live from PubMed titles matching SD/LD/season keywords for this gene — "
-                "they show literature signal (paper counts + titles), **not curated numeric expression values**. "
-                "No fold-change or expression-level number is fabricated here."
+                f"No curated entry exists yet for {symbol}, so here is real, current PubMed literature "
+                f"mentioning it alongside photoperiod, seasonal, or circadian terms — fetched live."
             )
+            with st.spinner("Searching PubMed..."):
+                papers = fetch_pubmed_photoperiod_papers(symbol)
 
-            lc1, lc2, lc3 = st.columns(3)
-
-            def render_live_card(container, css_class, label, bucket_papers):
-                with container:
-                    st.markdown(f'<div class="photo-card-live {css_class}">', unsafe_allow_html=True)
-                    st.markdown(f'<div class="live-badge">LIVE ESTIMATE</div>', unsafe_allow_html=True)
-                    st.markdown(f'<div class="photo-label">{label} — {len(bucket_papers)} live paper(s)</div>', unsafe_allow_html=True)
-                    if bucket_papers:
-                        for p in bucket_papers[:5]:
-                            st.markdown(f"""<div class="live-paper">
-                                <a href="{p['url']}" target="_blank">{p['title']}</a><br>
-                                <span style="color:#666;">{p['authors']} · {p['journal']} · {p['year']}</span>
-                            </div>""", unsafe_allow_html=True)
-                        if len(bucket_papers) > 5:
-                            st.caption(f"+ {len(bucket_papers) - 5} more — see full list below.")
-                    else:
-                        st.markdown('<div class="live-empty">No live PubMed hits matched this bucket yet.</div>', unsafe_allow_html=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-            render_live_card(lc1, "photo-card-live-sd", "❄️ Short-Day (SD) signal", buckets["SD"])
-            render_live_card(lc2, "photo-card-live-ld", "☀️ Long-Day (LD) signal", buckets["LD"])
-            render_live_card(lc3, "photo-card-live-season", "📅 Season / Circadian signal", buckets["SEASON"])
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            # ── Full literature list ──────────────────────────
-            st.markdown('<div class="section-header">📖 Full Live Literature Search — PubMed</div>', unsafe_allow_html=True)
             if papers:
                 for p in papers:
                     st.markdown(f"""
