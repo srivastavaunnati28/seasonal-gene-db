@@ -127,6 +127,10 @@ st.markdown("""
         color: #1a5276;
         font-weight: 700;
     }
+    .source-tag-db { background: #e4f7ea; border-color: #9edab3; color: #157a3d; }
+    .source-tag-ncbi { background: #eaf3fc; border-color: #a9c9e8; color: #205493; }
+    .source-tag-go { background: #fdf0e3; border-color: #e6c393; color: #9c5a17; }
+    .source-tag-seed { background: #f3e8fd; border-color: #cfa9e8; color: #6a1a9c; }
 
     /* Live cross-reference panel */
     .xref-box {
@@ -201,7 +205,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="ncbi-topstrip">🧬 National-style research resource · cross-referenced live with NCBI, PubMed, CircaDB, GEO &amp; UniProt</div>', unsafe_allow_html=True)
+st.markdown('<div class="ncbi-topstrip">🧬 National-style research resource · cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt &amp; Gene Ontology</div>', unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -269,6 +273,92 @@ SOURCE_INFO = {
                       "desc": "Raw high-throughput expression datasets (microarray/RNA-seq)."},
     "UniProt": {"url": "https://www.uniprot.org/",
                 "desc": "Protein function, pathways, post-translational modification."},
+    "Gene Ontology": {"url": "https://geneontology.org/",
+                       "desc": "Controlled-vocabulary annotation of gene function, process, and location."},
+}
+
+# ════════════════════════════════════════════════════════════════
+# CURATED SEED LIBRARY — established seasonal-physiology gene sets
+# (Static, textbook/literature-level biology used so a parameter
+# search never comes back empty, even before checking live sources.
+# References: Nakao et al. 2008 Nature; Hanon et al. 2008 Curr Biol;
+# Dardente et al. 2010 J Neuroendocrinol; Hazlerigg & Loudon 2008.)
+# ════════════════════════════════════════════════════════════════
+PARAMETER_LIBRARY = {
+    "Photoperiod / Melatonin Pathway": {
+        "keywords": ["melatonin", "photoperiod", "pineal", "short day", "long day",
+                     "AANAT", "ASMT", "HIOMT"],
+        "description": (
+            "Day length is transduced by the retina → retinohypothalamic tract → SCN → "
+            "PVN → superior cervical ganglion → pineal gland. The pineal converts "
+            "serotonin to melatonin at night; the *duration* of nightly melatonin "
+            "secretion (not its amplitude) encodes night length and is the core "
+            "'calendar' signal of the mammalian/avian photoperiodic system."
+        ),
+        "seed_genes": [
+            {"symbol": "AANAT", "role": "Rate-limiting enzyme for melatonin synthesis in the pineal gland; activity rises at night, encoding night length."},
+            {"symbol": "ASMT", "role": "(HIOMT) Final enzymatic step converting N-acetylserotonin to melatonin."},
+            {"symbol": "TPH1", "role": "Tryptophan hydroxylase 1; synthesizes serotonin, the precursor to melatonin, in the pineal gland."},
+            {"symbol": "DDC", "role": "Dopa decarboxylase; contributes to serotonin synthesis upstream of melatonin."},
+            {"symbol": "MTNR1A", "role": "Melatonin receptor 1 (MT1); mediates melatonin's phase-shifting and reproductive-axis effects."},
+            {"symbol": "MTNR1B", "role": "Melatonin receptor 2 (MT2); implicated in metabolic/glucose regulation and circadian phase."},
+            {"symbol": "GPR50", "role": "Melatonin-related orphan receptor; modulates MT1 signaling, implicated in seasonal metabolic adaptation."},
+            {"symbol": "TSHB", "role": "Thyroid-stimulating hormone beta; induced in the pars tuberalis under long photoperiod, triggers the seasonal thyroid-hormone switch."},
+            {"symbol": "DIO2", "role": "Type 2 deiodinase; locally activates T3, upregulated under long-day/summer-like photoperiod."},
+            {"symbol": "DIO3", "role": "Type 3 deiodinase; inactivates T3, upregulated under short-day/winter-like photoperiod."},
+            {"symbol": "EYA3", "role": "Transcriptional co-activator inducing TSHB under long photoperiod; core node of the seasonal switch."},
+        ],
+    },
+    "Circadian Clock Core": {
+        "keywords": ["circadian", "clock gene", "BMAL1", "CRY", "PER", "CLOCK"],
+        "description": (
+            "The core transcription-translation feedback loop that sets endogenous "
+            "~24h rhythms, including the phase of pineal AANAT/melatonin rhythm "
+            "that generates the photoperiodic signal itself."
+        ),
+        "seed_genes": [
+            {"symbol": "CLOCK", "role": "Core positive-arm transcription factor; dimerizes with BMAL1 to drive E-box gene expression."},
+            {"symbol": "ARNTL", "role": "(BMAL1) Obligate dimerization partner of CLOCK; essential positive-arm clock component."},
+            {"symbol": "PER1", "role": "Negative-arm clock gene; represses CLOCK:BMAL1 activity, entrained by light."},
+            {"symbol": "PER2", "role": "Negative-arm clock gene; central to peripheral clock synchronization and photoperiod encoding."},
+            {"symbol": "CRY1", "role": "Negative-arm clock gene; represses CLOCK:BMAL1, modulates period length."},
+            {"symbol": "CRY2", "role": "Negative-arm clock gene; paralog of CRY1 with overlapping repressor function."},
+            {"symbol": "NR1D1", "role": "(Rev-erbα) Nuclear receptor linking clock output to metabolic gene regulation."},
+            {"symbol": "RORA", "role": "Nuclear receptor; activates BMAL1 transcription, opposing Rev-erbα."},
+        ],
+    },
+    "Seasonal Reproduction (HPG axis)": {
+        "keywords": ["reproduction", "gonadotropin", "seasonal breeding", "kisspeptin", "GnRH"],
+        "description": (
+            "Downstream of the thyroid-hormone seasonal switch, this hypothalamic-"
+            "pituitary-gonadal circuitry gates reproductive activity in and out of "
+            "breeding season."
+        ),
+        "seed_genes": [
+            {"symbol": "KISS1", "role": "Kisspeptin; primary upstream activator of GnRH neurons."},
+            {"symbol": "KISS1R", "role": "Kisspeptin receptor (GPR54); mediates the kisspeptin signal onto GnRH neurons."},
+            {"symbol": "GNRH1", "role": "Gonadotropin-releasing hormone; drives pituitary LH/FSH release."},
+            {"symbol": "RFRP3", "role": "(NPVF) RFamide-related peptide; seasonally gates reproductive axis activity."},
+            {"symbol": "TAC3", "role": "Neurokinin B; co-expressed with kisspeptin, modulates GnRH pulsatility."},
+            {"symbol": "LHB", "role": "Luteinizing hormone beta subunit; pituitary output regulating gonadal function."},
+            {"symbol": "FSHB", "role": "Follicle-stimulating hormone beta subunit; pituitary output regulating gametogenesis."},
+        ],
+    },
+    "Thyroid-Hormone Seasonal Switch": {
+        "keywords": ["thyroid", "deiodinase", "pars tuberalis", "TSH"],
+        "description": (
+            "The TSH–deiodinase feed-forward loop in the pars tuberalis/hypothalamus "
+            "that converts the melatonin duration signal into a binary long-day vs. "
+            "short-day physiological state (Nakao et al. 2008; Hanon et al. 2008)."
+        ),
+        "seed_genes": [
+            {"symbol": "TSHB", "role": "Thyroid-stimulating hormone beta; pars tuberalis long-day output signal."},
+            {"symbol": "TSHR", "role": "TSH receptor on pars tuberalis/ependymal cells; receives the TSHB signal."},
+            {"symbol": "DIO2", "role": "Activates thyroid hormone (T3) locally; marks the long-day/summer state."},
+            {"symbol": "DIO3", "role": "Inactivates thyroid hormone; marks the short-day/winter state."},
+            {"symbol": "EYA3", "role": "Induces TSHB transcription under long photoperiod."},
+        ],
+    },
 }
 
 # ════════════════════════════════════════════════════════════════
@@ -312,6 +402,46 @@ def fetch_ncbi_gene_summary(gene_symbol: str, organism: str = "Homo sapiens"):
         }
     except Exception:
         return None
+
+
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def fetch_ncbi_gene_search(query_term: str, organism: str = "Homo sapiens", retmax: int = 15):
+    """Broad, NCBI-style free-text search across Gene records (not restricted
+    to an exact symbol). This is what makes the app 'big broad level' like
+    NCBI's own gene search — e.g. searching 'melatonin pathway' or
+    'photoperiod' rather than a single gene symbol.
+    Returns a list of dicts: symbol, name, gene_id, url. Empty list on
+    failure or no hits."""
+    try:
+        search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+        term = f"({query_term}[All Fields]) AND {organism}[Organism] AND alive[prop]"
+        params = {"db": "gene", "term": term, "retmode": "json", "retmax": retmax}
+        r = requests.get(search_url, params=params, timeout=8)
+        r.raise_for_status()
+        ids = r.json().get("esearchresult", {}).get("idlist", [])
+        if not ids:
+            return []
+
+        summary_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+        params2 = {"db": "gene", "id": ",".join(ids), "retmode": "json"}
+        r2 = requests.get(summary_url, params=params2, timeout=8)
+        r2.raise_for_status()
+        result = r2.json().get("result", {})
+
+        genes = []
+        for gid in ids:
+            item = result.get(gid)
+            if not item:
+                continue
+            genes.append({
+                "symbol": item.get("name", ""),
+                "name": item.get("description", ""),
+                "gene_id": gid,
+                "url": f"https://www.ncbi.nlm.nih.gov/gene/{gid}",
+            })
+        return genes
+    except Exception:
+        return []
 
 
 def uniprot_search_url(gene_symbol: str) -> str:
@@ -373,6 +503,53 @@ def fetch_pubmed_photoperiod_papers(gene_symbol: str, max_results: int = 8):
 
 
 # ════════════════════════════════════════════════════════════════
+# LIVE GENE ONTOLOGY CROSS-REFERENCE (via EBI QuickGO)
+# ════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def fetch_go_terms(query: str, limit: int = 8):
+    """Search GO ontology terms matching a free-text query (e.g. 'melatonin',
+    'photoperiodism'). Returns list of dicts: id, name, aspect. Empty list
+    on failure — the calling code degrades gracefully."""
+    try:
+        url = "https://www.ebi.ac.uk/QuickGO/services/ontology/go/search"
+        params = {"query": query, "limit": limit}
+        r = requests.get(url, params=params, timeout=8)
+        r.raise_for_status()
+        data = r.json()
+        results = data.get("results", [])
+        return [
+            {"id": item.get("id"), "name": item.get("name"), "aspect": item.get("aspect")}
+            for item in results if item.get("id")
+        ]
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
+def fetch_go_annotated_genes(go_id: str, taxon_id: int = 9606, limit: int = 25):
+    """Given a GO term ID, fetch gene products annotated to it for a given
+    taxon (default human) via QuickGO's annotation search — this is the
+    'big broad level, like Gene Ontology' lookup: pathway/process -> genes,
+    rather than gene -> pathway. Returns a sorted list of unique symbols."""
+    try:
+        url = "https://www.ebi.ac.uk/QuickGO/services/annotation/search"
+        params = {"goId": go_id, "taxonId": taxon_id,
+                   "geneProductType": "protein", "limit": limit}
+        r = requests.get(url, params=params, timeout=8)
+        r.raise_for_status()
+        data = r.json()
+        results = data.get("results", [])
+        symbols = set()
+        for item in results:
+            sym = item.get("symbol") or item.get("geneProductId")
+            if sym:
+                symbols.add(sym)
+        return sorted(symbols)
+    except Exception:
+        return []
+
+
+# ════════════════════════════════════════════════════════════════
 # SIDEBAR — References
 # ════════════════════════════════════════════════════════════════
 with st.sidebar:
@@ -392,6 +569,10 @@ with st.sidebar:
         3. Glynn, E. F., Chen, J., & Mushegian, A. R. (2006).
            Detecting periodic patterns in unevenly spaced gene expression time series using Lomb–Scargle periodograms.
            Bioinformatics, 22(3), 310-316.
+        4. Nakao, N., Ono, H., Yamamura, T., et al. (2008). Thyrotrophin in the pars
+           tuberalis triggers photoperiodic response. Nature, 452(7185), 317-322.
+        5. Hanon, E. A., Lincoln, G. A., Fustin, J. M., et al. (2008). Ancestral TSH
+           mechanism signals summer in a photoperiodic mammal. Current Biology, 18(15), 1147-1152.
         """)
         st.caption("Individual gene entries also cite a PMID/reference — see the "
                    "'Reference (PMID)' column in each result table.")
@@ -409,7 +590,7 @@ with st.sidebar:
 st.markdown("""
 <div class="main-header">
     <p class="main-title">🧬 Seasonal Physiology Gene Database</p>
-    <p class="main-subtitle">A photoperiod- and season-linked gene expression resource, cross-referenced with NCBI, CircaDB, PubMed, GEO Datasets, and UniProt.</p>
+    <p class="main-subtitle">A photoperiod- and season-linked gene expression resource, cross-referenced with NCBI, CircaDB, PubMed, GEO Datasets, UniProt, and Gene Ontology.</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -438,21 +619,52 @@ for col, (name, info) in zip(src_cols, SOURCE_INFO.items()):
             st.markdown(f"[Visit official site →]({info['url']})")
 
 tab_search, tab_compare, tab_contribute, tab_browse, tab_methods, tab_admin = st.tabs(
-    ["🔍 Search", "📊 Compare Genes", "✍️ Contribute Data", "🗂 Browse All Genes",
-     "🧪 Methodology", "🔐 Admin: Bulk Import"]
+    ["🔍 Universal Search", "📊 Compare Genes", "✍️ Contribute Data",
+     "🗂 Browse All Genes", "🧪 Methodology", "🔐 Admin: Bulk Import"]
 )
 
+
+def match_seed_library(query: str):
+    """Match a free-text query against the curated PARAMETER_LIBRARY —
+    by parameter name, keyword, or an exact seed-gene symbol."""
+    q = query.strip().lower()
+    if not q:
+        return {}
+    matches = {}
+    for pname, pdata in PARAMETER_LIBRARY.items():
+        name_hit = q in pname.lower()
+        kw_hit = any(q in kw.lower() or kw.lower() in q for kw in pdata["keywords"])
+        gene_hit = any(q == g["symbol"].lower() for g in pdata["seed_genes"])
+        if name_hit or kw_hit or gene_hit:
+            matches[pname] = pdata
+    return matches
+
+
 # ════════════════════════════════════════════════════════════════
-# TAB 1 — SEARCH (SD | LD | Season side-by-side)
+# TAB 1 — UNIVERSAL SEARCH (gene symbol OR pathway/parameter, one box)
+# One public search engine: type a gene symbol (CLOCK, AANAT, MTNR1A)
+# or a pathway/parameter keyword (melatonin, photoperiod, thyroid...).
+# Every available source is checked; a clean "Not Found" is shown only
+# if NONE of the sources return anything.
 # ════════════════════════════════════════════════════════════════
 with tab_search:
-    gene_input = st.text_input("Search Gene Symbol",
-                                placeholder="e.g. CLOCK, VDR, IL6, LEP, SLC6A4")
+    st.markdown('<div class="section-header" style="margin-top:0;">Search Any Gene or Pathway</div>', unsafe_allow_html=True)
+    st.caption(
+        "Type an exact gene symbol (e.g. CLOCK, AANAT, MTNR1A) for a full seasonal profile, "
+        "or a pathway/parameter keyword (e.g. melatonin, photoperiod, seasonal reproduction, thyroid) "
+        "to find every related gene across this database, NCBI, and Gene Ontology."
+    )
 
-    if gene_input:
-        symbol = gene_input.upper().strip()
+    raw_query = st.text_input("Search", placeholder="e.g. CLOCK  •  melatonin  •  photoperiod  •  AANAT  •  seasonal reproduction",
+                               label_visibility="collapsed")
 
-        query = """
+    if raw_query.strip():
+        symbol = raw_query.strip().upper()
+        found_any = False
+        refs_used = set()
+
+        # ── LAYER 1: exact gene-symbol profile in curated DB ──────
+        gene_query = """
             SELECT g.gene_symbol, g.full_name, g.category,
                    s.name AS season, gsf.expression_level,
                    gsf.fold_change, gsf.functional_role,
@@ -464,9 +676,10 @@ with tab_search:
             WHERE g.gene_symbol = %s
             ORDER BY FIELD(s.name, 'Winter','Spring','Summer','Autumn')
         """
-        df = pd.read_sql(query, conn, params=[symbol])
+        df = pd.read_sql(gene_query, conn, params=[symbol])
 
         if not df.empty:
+            found_any = True
             n_evidence = df['study_reference'].nunique() if 'study_reference' in df.columns else len(df)
             st.markdown(f"""
             <div class="result-box">
@@ -475,49 +688,16 @@ with tab_search:
             </div>
             """, unsafe_allow_html=True)
 
-            # ── Live NCBI cross-reference ─────────────────────────
-            with st.expander("🔬 Live NCBI cross-reference", expanded=False):
-                with st.spinner("Querying NCBI Gene..."):
-                    ncbi = fetch_ncbi_gene_summary(symbol)
-                if ncbi:
-                    st.markdown(f"""
-                    <div class="xref-box">
-                        <span class="xref-label">Official name:</span> {ncbi['official_name']}<br>
-                        <span class="xref-label">Chromosome:</span> {ncbi['chromosome']}
-                        &nbsp;·&nbsp; <span class="xref-label">Map location:</span> {ncbi['map_location']}<br>
-                        <span class="xref-label">NCBI summary:</span> {ncbi['summary']}<br><br>
-                        <a href="{ncbi['ncbi_url']}" target="_blank">View full NCBI Gene record →</a>
-                        &nbsp;|&nbsp;
-                        <a href="{uniprot_search_url(symbol)}" target="_blank">View on UniProt →</a>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.markdown(f"""
-                    <div class="xref-box">
-                        Could not retrieve a live NCBI record for <b>{symbol}</b> automatically
-                        (symbol may be non-standard, organism-ambiguous, or NCBI was unreachable).
-                        You can check manually:<br>
-                        <a href="https://www.ncbi.nlm.nih.gov/gene/?term={symbol}" target="_blank">Search NCBI Gene →</a>
-                        &nbsp;|&nbsp;
-                        <a href="{uniprot_search_url(symbol)}" target="_blank">Search UniProt →</a>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-            # ── SD | LD | Season comparison row ──────────────────
-            # Backfill photoperiod_condition from season where not explicitly set
             df['photoperiod_condition'] = df.apply(
                 lambda r: r['photoperiod_condition'] if r['photoperiod_condition']
                 else SEASON_TO_PHOTOPERIOD.get(r['season'], 'INT'),
                 axis=1
             )
-
             sd_rows = df[df['photoperiod_condition'] == 'SD']
             ld_rows = df[df['photoperiod_condition'] == 'LD']
-            season_rows = df  # full season breakdown, all 4
 
             st.markdown('<div class="section-header">Photoperiod & Season Comparison</div>', unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
-
             with c1:
                 st.markdown('<div class="photo-card photo-card-sd">', unsafe_allow_html=True)
                 st.markdown('<div class="photo-label">❄️ Short-Day (SD)</div>', unsafe_allow_html=True)
@@ -531,7 +711,6 @@ with tab_search:
                 else:
                     st.markdown('<div class="photo-value">No SD-specific data curated yet.</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-
             with c2:
                 st.markdown('<div class="photo-card photo-card-ld">', unsafe_allow_html=True)
                 st.markdown('<div class="photo-label">☀️ Long-Day (LD)</div>', unsafe_allow_html=True)
@@ -545,26 +724,21 @@ with tab_search:
                 else:
                     st.markdown('<div class="photo-value">No LD-specific data curated yet.</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-
             with c3:
                 st.markdown('<div class="photo-card photo-card-season">', unsafe_allow_html=True)
                 st.markdown('<div class="photo-label">📅 By Season</div>', unsafe_allow_html=True)
-                season_icons = {'Winter':'❄️','Spring':'🌱','Summer':'☀️','Autumn':'🍂'}
-                for _, r in season_rows.iterrows():
+                season_icons = {'Winter': '❄️', 'Spring': '🌱', 'Summer': '☀️', 'Autumn': '🍂'}
+                for _, r in df.iterrows():
                     st.markdown(f"""<div class="photo-value">
-                        {season_icons.get(r['season'],'')} <b>{r['season']}</b>: {r['expression_level']} ({r['fold_change']}x)
+                        {season_icons.get(r['season'], '')} <b>{r['season']}</b>: {r['expression_level']} ({r['fold_change']}x)
                     </div>""", unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            # ── Bar chart, all 4 seasons ──────────────────────────
             fig = px.bar(df, x='season', y='fold_change', color='season',
-                color_discrete_map={'Winter': '#1f5fa8', 'Spring': '#1f9d55',
-                                     'Summer': '#e8820c', 'Autumn': '#b0453f'},
-                title=f"{symbol} — Fold Change by Season")
-            fig.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white',
-                               font_color='#1a1a1a')
+                         color_discrete_map={'Winter': '#1f5fa8', 'Spring': '#1f9d55',
+                                              'Summer': '#e8820c', 'Autumn': '#b0453f'},
+                         title=f"{symbol} — Fold Change by Season")
+            fig.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
             fig.update_yaxes(title_text="Fold Change (relative to baseline)")
             fig.update_xaxes(title_text="Season")
             st.plotly_chart(fig, use_container_width=True)
@@ -579,69 +753,148 @@ with tab_search:
                 }),
                 use_container_width=True
             )
+            for ref in df['study_reference'].dropna().unique().tolist():
+                refs_used.add(f"Curated study reference: {ref}")
 
             csv_bytes = df.to_csv(index=False).encode("utf-8")
             st.download_button("⬇️ Download this gene's data as CSV", csv_bytes,
                                 file_name=f"{symbol}_seasonal_data.csv", mime="text/csv")
-        else:
-            st.info(f"No curated seasonal/photoperiod data yet for '{symbol}'. Use the Contribute tab to add it.")
 
-            # ── Live NCBI identity check (even without curated data) ──
-            with st.spinner("Checking NCBI Gene..."):
-                ncbi_fallback = fetch_ncbi_gene_summary(symbol)
-            if ncbi_fallback:
-                st.markdown(f"""
-                <div class="xref-box">
-                    <span class="xref-label">Confirmed via NCBI:</span> {ncbi_fallback['official_name']}
-                    (Chromosome {ncbi_fallback['chromosome']})<br>
-                    <a href="{ncbi_fallback['ncbi_url']}" target="_blank">View NCBI Gene record →</a>
-                    &nbsp;|&nbsp;
-                    <a href="{uniprot_search_url(symbol)}" target="_blank">View on UniProt →</a>
-                </div>
-                """, unsafe_allow_html=True)
+            comm_query = """
+                SELECT season_or_condition AS "Season/Condition", expression_level AS "Expression",
+                       fold_change AS "Fold Change", functional_role AS "Functional Role",
+                       pathway AS "Pathway", tissue_type AS "Tissue", source_db AS "Source DB",
+                       source_reference AS "Reference", contributor_name AS "Contributor",
+                       submitted_at AS "Submitted"
+                FROM community_contributions
+                WHERE gene_symbol = %s
+                ORDER BY submitted_at DESC
+            """
+            comm_df = pd.read_sql(comm_query, conn, params=[symbol])
+            if not comm_df.empty:
+                st.markdown('<div class="section-header">🌍 Community-Contributed Data</div>', unsafe_allow_html=True)
+                st.caption("Submitted directly by users — not independently verified by the project author.")
+                st.dataframe(comm_df, use_container_width=True)
 
-            # ── Live PubMed literature search fallback ─────────────
-            st.markdown('<div class="section-header">📖 Live Literature Search — PubMed</div>', unsafe_allow_html=True)
-            st.caption(
-                f"No curated entry exists yet for {symbol}, so here is real, current PubMed literature "
-                f"mentioning it alongside photoperiod, seasonal, or circadian terms — fetched live."
-            )
-            with st.spinner("Searching PubMed..."):
-                papers = fetch_pubmed_photoperiod_papers(symbol)
-
-            if papers:
-                for p in papers:
-                    st.markdown(f"""
-                    <div class="xref-box">
-                        <a href="{p['url']}" target="_blank"><b>{p['title']}</b></a><br>
-                        <span style="color:#555;">{p['authors']} &nbsp;·&nbsp; {p['journal']} &nbsp;·&nbsp; {p['year']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                st.caption("Titles and links only, pulled live from PubMed — full abstracts are available via the links above.")
-            else:
-                st.markdown(f"""
-                <div class="xref-box">
-                    No PubMed papers directly link <b>{symbol}</b> to photoperiod/seasonal/circadian terms yet.<br>
-                    <a href="https://pubmed.ncbi.nlm.nih.gov/?term={symbol}" target="_blank">Search PubMed for {symbol} generally →</a>
-                </div>
-                """, unsafe_allow_html=True)
-
-        # Community contributions
-        comm_query = """
-            SELECT season_or_condition AS "Season/Condition", expression_level AS "Expression",
-                   fold_change AS "Fold Change", functional_role AS "Functional Role",
-                   pathway AS "Pathway", tissue_type AS "Tissue", source_db AS "Source DB",
-                   source_reference AS "Reference", contributor_name AS "Contributor",
-                   submitted_at AS "Submitted"
-            FROM community_contributions
-            WHERE gene_symbol = %s
-            ORDER BY submitted_at DESC
+        # ── LAYER 2: curated DB pathway / functional-role keyword match ──
+        like = f"%{raw_query.strip()}%"
+        kw_query = """
+            SELECT DISTINCT g.gene_symbol, g.full_name, gsf.pathway, gsf.functional_role, gsf.study_reference
+            FROM gene_seasonal_function gsf
+            JOIN genes g ON gsf.gene_id = g.id
+            WHERE (g.full_name LIKE %s OR gsf.pathway LIKE %s OR gsf.functional_role LIKE %s)
+              AND g.gene_symbol != %s
+            LIMIT 50
         """
-        comm_df = pd.read_sql(comm_query, conn, params=[symbol])
-        if not comm_df.empty:
-            st.markdown('<div class="section-header">🌍 Community-Contributed Data</div>', unsafe_allow_html=True)
-            st.caption("Submitted directly by users — not independently verified by the project author.")
-            st.dataframe(comm_df, use_container_width=True)
+        try:
+            kw_matches = pd.read_sql(kw_query, conn, params=[like, like, like, symbol])
+        except Exception:
+            kw_matches = pd.DataFrame()
+
+        if not kw_matches.empty:
+            found_any = True
+            st.markdown('<div class="section-header">🗄 Related Genes — This Database (pathway/role match)</div>', unsafe_allow_html=True)
+            st.dataframe(
+                kw_matches.rename(columns={
+                    'gene_symbol': 'Gene', 'full_name': 'Full Name',
+                    'pathway': 'Pathway', 'functional_role': 'Functional Role',
+                    'study_reference': 'Reference'
+                }),
+                use_container_width=True, hide_index=True
+            )
+            for ref in kw_matches['study_reference'].dropna().unique().tolist():
+                refs_used.add(f"Curated study reference: {ref}")
+
+        # ── LAYER 3: curated literature seed library (photoperiod/melatonin/etc.) ──
+        seed_matches = match_seed_library(raw_query.strip())
+        if seed_matches:
+            found_any = True
+            for pname, pdata in seed_matches.items():
+                st.markdown(f'<div class="section-header">🧬 Literature Gene Set — {pname}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="xref-box">{pdata["description"]}</div>', unsafe_allow_html=True)
+                seed_df = pd.DataFrame(pdata["seed_genes"]).rename(columns={"symbol": "Gene Symbol", "role": "Known Role"})
+                st.dataframe(seed_df, use_container_width=True, hide_index=True)
+                refs_used.add("Nakao et al. 2008, Nature 452:317-322 — thyrotrophin/pars tuberalis photoperiodic switch")
+                refs_used.add("Hanon et al. 2008, Current Biology 18:1147-1152 — ancestral TSH mechanism")
+
+        # ── LAYER 4: live NCBI Gene free-text / symbol search ─────
+        with st.spinner("Checking NCBI Gene..."):
+            ncbi_exact = fetch_ncbi_gene_summary(symbol) if df.empty else None
+            ncbi_hits = fetch_ncbi_gene_search(raw_query.strip())
+
+        if ncbi_exact:
+            found_any = True
+            st.markdown('<div class="section-header">🔬 Live NCBI Gene Record</div>', unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="xref-box">
+                <span class="xref-label">Official name:</span> {ncbi_exact['official_name']}<br>
+                <span class="xref-label">Chromosome:</span> {ncbi_exact['chromosome']}
+                &nbsp;·&nbsp; <span class="xref-label">Map location:</span> {ncbi_exact['map_location']}<br>
+                <span class="xref-label">NCBI summary:</span> {ncbi_exact['summary']}<br><br>
+                <a href="{ncbi_exact['ncbi_url']}" target="_blank">View full NCBI Gene record →</a>
+                &nbsp;|&nbsp;
+                <a href="{uniprot_search_url(symbol)}" target="_blank">View on UniProt →</a>
+            </div>
+            """, unsafe_allow_html=True)
+            refs_used.add(f"NCBI Gene ID {ncbi_exact['gene_id']} — {ncbi_exact['ncbi_url']}")
+
+        if ncbi_hits:
+            found_any = True
+            st.markdown('<div class="section-header">🌐 Live NCBI Gene Search Results</div>', unsafe_allow_html=True)
+            ncbi_df = pd.DataFrame(ncbi_hits).rename(columns={"symbol": "Gene", "name": "Description", "url": "Link"})
+            st.dataframe(ncbi_df[["Gene", "Description"]], use_container_width=True, hide_index=True)
+            for hit in ncbi_hits[:10]:
+                refs_used.add(f"NCBI Gene ID {hit['gene_id']} — {hit['url']}")
+
+        # ── LAYER 5: live Gene Ontology term + annotation search ──
+        go_query_term = symbol if seed_matches == {} and df.empty and kw_matches.empty else raw_query.strip()
+        with st.spinner("Checking Gene Ontology..."):
+            go_terms = fetch_go_terms(go_query_term, limit=5)
+            go_gene_rows = []
+            for t in go_terms:
+                for g_sym in fetch_go_annotated_genes(t["id"], limit=15):
+                    go_gene_rows.append({"Gene": g_sym, "GO Term": t["name"], "GO ID": t["id"]})
+
+        if go_terms:
+            found_any = True
+            st.markdown('<div class="section-header">🧭 Matching Gene Ontology Terms</div>', unsafe_allow_html=True)
+            for t in go_terms:
+                st.markdown(
+                    f'<span class="source-tag source-tag-go">{t["id"]}</span> '
+                    f'{t["name"]} <i>({t.get("aspect","")})</i> — '
+                    f'<a href="https://www.ebi.ac.uk/QuickGO/term/{t["id"]}" target="_blank">view on QuickGO →</a>',
+                    unsafe_allow_html=True
+                )
+                refs_used.add(f"Gene Ontology term {t['id']} ({t['name']}) — https://www.ebi.ac.uk/QuickGO/term/{t['id']}")
+
+        if go_gene_rows:
+            st.markdown('<div class="section-header">🧭 Genes Annotated to These GO Terms</div>', unsafe_allow_html=True)
+            go_df = pd.DataFrame(go_gene_rows).drop_duplicates(subset=["Gene"])
+            st.dataframe(go_df, use_container_width=True, hide_index=True)
+
+        # ── FINAL: clean "Not Found" only if truly nothing anywhere ──
+        if not found_any:
+            st.markdown(f"""
+            <div class="xref-box" style="border-left-color:#b0453f;">
+                <span class="xref-label" style="color:#b0453f;">❌ Not Found</span><br>
+                No result for <b>"{raw_query.strip()}"</b> in this database's curated records,
+                the literature seed sets, live NCBI Gene, or live Gene Ontology.<br><br>
+                Try a broader term (e.g. "melatonin" instead of a specific receptor variant),
+                double-check the gene symbol spelling, or:
+                <ul>
+                    <li><a href="https://www.ncbi.nlm.nih.gov/gene/?term={raw_query.strip()}" target="_blank">Search NCBI Gene manually →</a></li>
+                    <li><a href="https://pubmed.ncbi.nlm.nih.gov/?term={raw_query.strip()}" target="_blank">Search PubMed manually →</a></li>
+                    <li><a href="https://www.ebi.ac.uk/QuickGO/search/{raw_query.strip()}" target="_blank">Search Gene Ontology manually →</a></li>
+                </ul>
+                Know something about this gene/pathway? Use the <b>Contribute Data</b> tab to add it.
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="section-header">📚 References Used in This Result</div>', unsafe_allow_html=True)
+            if refs_used:
+                for ref in sorted(refs_used):
+                    st.markdown(f"- {ref}")
+            st.caption("Also see the full reference list and linked source databases in the sidebar.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 2 — COMPARE GENES (multi-gene, side-by-side)
@@ -699,7 +952,8 @@ with tab_compare:
                     use_container_width=True
                 )
     else:
-        st.caption("Try comparing core clock genes, e.g. **CLOCK, PER2, BMAL1, CRY1**.")
+        st.caption("Try comparing core clock genes, e.g. **CLOCK, PER2, BMAL1, CRY1**, "
+                   "or melatonin-pathway genes, e.g. **AANAT, ASMT, MTNR1A, MTNR1B**.")
 
 # ════════════════════════════════════════════════════════════════
 # TAB 3 — CONTRIBUTE
@@ -719,10 +973,10 @@ with tab_contribute:
             f_expression = st.selectbox("Expression Level *", ["HIGH", "NORMAL", "LOW"])
             f_fold = st.number_input("Fold Change", min_value=0.0, max_value=20.0, value=1.0, step=0.1)
         with c2:
-            f_pathway = st.text_input("Pathway", placeholder="e.g. Circadian Rhythm")
-            f_tissue = st.text_input("Tissue Type", placeholder="e.g. Liver, SCN")
+            f_pathway = st.text_input("Pathway", placeholder="e.g. Melatonin Synthesis, Circadian Rhythm")
+            f_tissue = st.text_input("Tissue Type", placeholder="e.g. Liver, SCN, Pineal Gland")
             f_source_db = st.selectbox("Source Database *",
-                ["NCBI", "CircaDB", "PubMed", "GEO Datasets", "UniProt", "Other"])
+                ["NCBI", "CircaDB", "PubMed", "GEO Datasets", "UniProt", "Gene Ontology", "Other"])
             f_source_ref = st.text_input("Source Reference *", placeholder="PMID, GEO accession, or URL")
 
         f_role = st.text_area("Functional Role / Notes", placeholder="Describe the gene's seasonal/photoperiod role...")
@@ -768,13 +1022,33 @@ with tab_contribute:
 # TAB 4 — BROWSE
 # ════════════════════════════════════════════════════════════════
 with tab_browse:
-    category_filter = st.selectbox("Filter by category",
-        ["All", "Circadian", "Hormonal", "Immune", "Metabolic", "Mood/Brain", "Other"])
+    st.markdown('<div class="section-header">Browse & Filter All Genes</div>', unsafe_allow_html=True)
+
+    fcol1, fcol2 = st.columns([1, 2])
+    with fcol1:
+        category_filter = st.selectbox("Filter by category",
+            ["All", "Circadian", "Hormonal", "Immune", "Metabolic", "Mood/Brain", "Other"])
+    with fcol2:
+        pathway_filter = st.text_input("Filter by pathway/functional-role keyword (optional)",
+                                        placeholder="e.g. melatonin, photoperiod, thyroid")
 
     all_query = "SELECT gene_symbol AS Symbol, full_name AS \"Full Name\", category AS Category, chromosome AS Chromosome, organism AS Organism FROM genes ORDER BY gene_symbol"
     all_genes = pd.read_sql(all_query, conn)
     if category_filter != "All":
         all_genes = all_genes[all_genes['Category'] == category_filter]
+
+    if pathway_filter.strip():
+        kw_query = """
+            SELECT DISTINCT g.gene_symbol
+            FROM gene_seasonal_function gsf
+            JOIN genes g ON gsf.gene_id = g.id
+            WHERE gsf.pathway LIKE %s OR gsf.functional_role LIKE %s
+        """
+        like = f"%{pathway_filter.strip()}%"
+        kw_matches = pd.read_sql(kw_query, conn, params=[like, like])
+        matching_symbols = set(kw_matches['gene_symbol']) if not kw_matches.empty else set()
+        all_genes = all_genes[all_genes['Symbol'].isin(matching_symbols)]
+
     st.dataframe(all_genes, use_container_width=True)
     st.caption(f"Showing {len(all_genes)} genes")
 
@@ -802,7 +1076,7 @@ with tab_methods:
     - **HIGH** — expression elevated relative to the study's baseline/control condition
     - **NORMAL** — expression within the study's typical/baseline range
     - **LOW** — expression reduced relative to baseline
-    
+
     Fold change values, where reported, are shown alongside these categories and
     should be read as *relative to the baseline defined in the cited source*, not
     as standardized across studies.
@@ -811,27 +1085,45 @@ with tab_methods:
     Gene entries display an evidence badge:
     - **Single curated entry** — data drawn from one source/study
     - **Replicated across ≥2 entries** — corroborated by multiple curated records
-    
+
     This badge reflects curation coverage in this database only, not a formal
     meta-analysis, and should not be read as a statement of scientific consensus.
 
     **5. Live cross-referencing**
     Gene symbols are checked against live NCBI Gene records (via NCBI E-utilities)
     at search time to confirm official nomenclature and surface the official gene
-    summary. This is a validation aid, not a data source for the fold-change/
-    expression values themselves, which come from the curated database.
+    summary, and against live Gene Ontology terms/annotations (via EBI QuickGO) to
+    surface process/function annotations. These are validation aids, not the data
+    source for the fold-change/expression values themselves, which come from the
+    curated database.
 
-    **6. Community contributions**
+    **6. Universal search behavior**
+    The single Search box accepts either an exact gene symbol or a pathway/
+    parameter keyword (e.g. "melatonin", "photoperiod", "seasonal reproduction").
+    A query is checked, in order, against: (a) this database's curated
+    gene-season records, (b) this database's pathway/functional-role text
+    fields, (c) a literature-derived seed gene set for well-established
+    seasonal-physiology parameters (photoperiod/melatonin, circadian clock,
+    seasonal reproduction, thyroid switch), (d) a live NCBI Gene search, and
+    (e) a live Gene Ontology term + annotation search (EBI QuickGO). Each
+    result section is explicitly labeled by source, and a clean "Not Found"
+    is shown only when **all five** checks return nothing — a miss in one
+    source alone does not produce a false negative. Every displayed result
+    lists its originating reference(s) for traceability before citation.
+
+    **7. Community contributions**
     Data submitted via the Contribute tab is published immediately and is
     **not independently verified** by the project author before appearing
     publicly. It is visually and structurally separated from author-curated
     entries throughout the app. Users citing this tool for research purposes
     should verify community-submitted rows against the original source listed.
 
-    **7. Limitations**
+    **8. Limitations**
     - Organism is not uniformly controlled for across all entries; check the
       "Organism" field in Browse All Genes where relevant.
     - Tissue type varies by study and is not normalized.
+    - GO annotation search is limited to human (taxon 9606) by default; results
+      for other organisms require a different taxon ID.
     - This is a curation and cross-referencing tool, not a primary data source —
       always confirm critical values against the cited original publication or
       database record before use in a manuscript.
@@ -888,6 +1180,10 @@ with tab_admin:
         batch_reference = st.text_input(
             "Study reference (PMID, GEO accession, or short label)",
             placeholder="e.g. GSE123456 or PMID 12345678"
+        )
+        batch_pathway = st.text_input(
+            "Pathway label for this batch (optional, improves keyword search matching)",
+            placeholder="e.g. Melatonin Synthesis, Photoperiod Response"
         )
         autofill_ncbi = st.checkbox(
             "Auto-fill official gene name via live NCBI lookup (slower — ~0.4s per gene)",
@@ -986,7 +1282,7 @@ with tab_admin:
                                     expression_from_log2fc(log2fc),
                                     round(log2fc, 3),
                                     f"Imported from bulk CSV — mean expression ({mean_col}) = {row[mean_col]}, log2FC = {round(log2fc,3)}",
-                                    "Imported dataset",
+                                    batch_pathway or "Imported dataset",
                                     batch_tissue,
                                     batch_reference,
                                     photoperiod
@@ -1009,7 +1305,7 @@ with tab_admin:
 # FOOTER
 # ════════════════════════════════════════════════════════════════
 st.divider()
-st.caption("Data sources: NCBI Gene · CircaDB · GEO Datasets · UniProt · PubMed · Community contributions")
+st.caption("Data sources: NCBI Gene · CircaDB · GEO Datasets · UniProt · Gene Ontology · PubMed · Community contributions")
 st.caption("This is an open, publicly editable research database. Data accuracy of community contributions is not independently verified.")
 st.caption("📚 Full reference list available in the sidebar. Suggested citation: Your Name (2026). "
            "*Seasonal Physiology Gene Database*. "
