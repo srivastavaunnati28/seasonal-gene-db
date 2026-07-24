@@ -930,7 +930,9 @@ with tab_search:
             go_df = pd.DataFrame(go_gene_rows).drop_duplicates(subset=["Gene"])
             st.dataframe(go_df, use_container_width=True, hide_index=True)
 
-        # ── VISUAL SUMMARY: bar graph, heatmap, Venn diagram ──────
+        # ── VISUAL SUMMARY: season / photoperiod comparison + heatmap ──
+        # (Focused on the biology itself — SD vs LD and season trends —
+        # rather than which external source each gene came from.)
         if found_any:
             db_gene_set = set(df['gene_symbol'].tolist()) if not df.empty else set()
             if not kw_matches.empty:
@@ -938,73 +940,87 @@ with tab_search:
             seed_gene_set = set()
             for pdata in seed_matches.values():
                 seed_gene_set |= {g['symbol'] for g in pdata['seed_genes']}
-            ncbi_gene_set = {h['symbol'] for h in ncbi_hits if h.get('symbol')}
-            if ncbi_exact:
-                ncbi_gene_set.add(ncbi_exact['official_symbol'])
-            go_gene_set = {row['Gene'] for row in go_gene_rows}
 
-            st.markdown('<div class="section-header">📊 Visual Summary</div>', unsafe_allow_html=True)
+            all_matched_genes = sorted(db_gene_set | seed_gene_set)[:20]
 
-            # -- 1. Bar graph: genes found per source --
-            source_counts = {
-                "This Database": len(db_gene_set),
-                "Literature Seed Set": len(seed_gene_set),
-                "Live NCBI Gene": len(ncbi_gene_set),
-                "Live Gene Ontology": len(go_gene_set),
-            }
-            bar_df = pd.DataFrame({"Source": list(source_counts.keys()), "Genes Found": list(source_counts.values())})
-            fig_bar = px.bar(bar_df, x="Source", y="Genes Found", color="Source",
-                              color_discrete_sequence=["#1f9d55", "#6a1a9c", "#205493", "#e8820c"],
-                              title=f'Genes Found per Source — "{raw_query.strip()}"')
-            fig_bar.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
-            st.plotly_chart(fig_bar, use_container_width=True, key="bar_sources")
+            st.markdown('<div class="section-header">📊 Seasonal & Photoperiod Visual Summary</div>', unsafe_allow_html=True)
 
-            # -- 2. Heatmap: gene x season fold-change (curated DB genes only, capped) --
-            heatmap_genes = sorted(db_gene_set)[:15]
-            if len(heatmap_genes) >= 1:
-                placeholders_h = ",".join(["%s"] * len(heatmap_genes))
-                heat_query = f"""
-                    SELECT g.gene_symbol, s.name AS season, gsf.fold_change
+            if all_matched_genes:
+                placeholders_v = ",".join(["%s"] * len(all_matched_genes))
+                visual_query = f"""
+                    SELECT g.gene_symbol, s.name AS season, gsf.fold_change, gsf.photoperiod_condition
                     FROM gene_seasonal_function gsf
                     JOIN genes g ON gsf.gene_id = g.id
                     JOIN seasons s ON gsf.season_id = s.id
-                    WHERE g.gene_symbol IN ({placeholders_h})
+                    WHERE g.gene_symbol IN ({placeholders_v})
                 """
                 try:
-                    heat_df = pd.read_sql(heat_query, conn, params=heatmap_genes)
+                    visual_df = pd.read_sql(visual_query, conn, params=all_matched_genes)
                 except Exception:
-                    heat_df = pd.DataFrame()
+                    visual_df = pd.DataFrame()
 
-                if not heat_df.empty:
-                    pivot = heat_df.pivot_table(index='gene_symbol', columns='season',
-                                                 values='fold_change', aggfunc='mean')
-                    season_order = [s for s in ['Winter', 'Spring', 'Summer', 'Autumn'] if s in pivot.columns]
-                    pivot = pivot[season_order]
-                    fig_heat = px.imshow(pivot, text_auto=".2f", aspect="auto",
-                                          color_continuous_scale="RdBu_r",
-                                          labels=dict(x="Season", y="Gene", color="Fold Change"),
-                                          title="Fold Change Heatmap — Gene × Season (this database)")
+                if not visual_df.empty:
+                    visual_df['photoperiod_condition'] = visual_df.apply(
+                        lambda r: r['photoperiod_condition'] if r['photoperiod_condition']
+                        else SEASON_TO_PHOTOPERIOD.get(r['season'], 'INT'),
+                        axis=1
+                    )
+                    season_order = [s for s in ['Winter', 'Spring', 'Summer', 'Autumn']
+                                     if s in visual_df['season'].unique()]
+
+                    # -- 1. Short-Day vs Long-Day fold-change comparison, per gene --
+                    photo_summary = (
+                        visual_df[visual_df['photoperiod_condition'].isin(['SD', 'LD'])]
+                        .groupby(['gene_symbol', 'photoperiod_condition'])['fold_change']
+                        .mean()
+                        .reset_index()
+                    )
+                    if not photo_summary.empty:
+                        fig_photo = px.bar(
+                            photo_summary, x='gene_symbol', y='fold_change',
+                            color='photoperiod_condition', barmode='group',
+                            color_discrete_map={'SD': '#1f5fa8', 'LD': '#e8820c'},
+                            title=f'❄️ Short-Day vs ☀️ Long-Day Fold Change — "{raw_query.strip()}"',
+                            labels={'gene_symbol': 'Gene', 'fold_change': 'Fold Change',
+                                    'photoperiod_condition': 'Photoperiod'}
+                        )
+                        fig_photo.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                        st.plotly_chart(fig_photo, use_container_width=True, key="photoperiod_comparison")
+                    else:
+                        st.caption("No SD/LD-labeled data yet for the matched gene(s) — this chart needs at least one curated row tagged SD or LD.")
+
+                    # -- 2. Average seasonal trend across the matched genes --
+                    season_trend = (
+                        visual_df.groupby('season')['fold_change'].mean()
+                        .reindex(season_order)
+                        .reset_index()
+                    )
+                    if not season_trend.empty:
+                        fig_trend = px.line(
+                            season_trend, x='season', y='fold_change', markers=True,
+                            title=f'Average Seasonal Fold-Change Trend — "{raw_query.strip()}"',
+                            labels={'season': 'Season', 'fold_change': 'Avg. Fold Change'}
+                        )
+                        fig_trend.update_traces(line_color='#205493', marker=dict(size=10, color='#ff8c1a'))
+                        fig_trend.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                        st.plotly_chart(fig_trend, use_container_width=True, key="season_trend")
+
+                    # -- 3. Heatmap: gene x season fold-change, across all matched genes --
+                    pivot = visual_df.pivot_table(index='gene_symbol', columns='season',
+                                                   values='fold_change', aggfunc='mean')
+                    pivot = pivot[[c for c in season_order if c in pivot.columns]]
+                    fig_heat = px.imshow(
+                        pivot, text_auto=".2f", aspect="auto",
+                        color_continuous_scale="RdBu_r",
+                        labels=dict(x="Season", y="Gene", color="Fold Change"),
+                        title="Fold Change Heatmap — Gene × Season"
+                    )
                     fig_heat.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
                     st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_genes")
                 else:
-                    st.caption("No per-season fold-change data curated yet for the matched gene(s) — heatmap needs at least one curated database row.")
-
-            # -- 3. Venn diagram: overlap between DB / NCBI / GO gene sets --
-            venn_sets = {}
-            if db_gene_set:
-                venn_sets["This Database"] = db_gene_set
-            if ncbi_gene_set:
-                venn_sets["NCBI Gene"] = ncbi_gene_set
-            if go_gene_set:
-                venn_sets["Gene Ontology"] = go_gene_set
-
-            if len(venn_sets) >= 2:
-                st.markdown("**Source Overlap (Venn Diagram)**")
-                st.caption("Schematic (not area-proportional) — shows which genes are found in more than one source.")
-                fig_venn = render_venn(venn_sets)
-                st.plotly_chart(fig_venn, use_container_width=True, key="venn_sources")
+                    st.caption("No curated fold-change data yet for the matched gene(s) — these charts need at least one curated database row with a numeric fold-change value.")
             else:
-                st.caption("Only one source returned genes for this query, so a Venn diagram isn't meaningful here.")
+                st.caption("No genes with curated numeric data matched this query yet — charts will appear once curated fold-change rows exist for it.")
 
         # ── FINAL: clean "Not Found" only if truly nothing anywhere ──
         if not found_any:
