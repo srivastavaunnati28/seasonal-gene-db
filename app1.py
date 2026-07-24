@@ -549,6 +549,64 @@ def fetch_go_annotated_genes(go_id: str, taxon_id: int = 9606, limit: int = 25):
         return []
 
 
+def render_venn(sets_dict: dict):
+    """Build a schematic (not area-proportional) 2- or 3-set Venn diagram
+    using pure Plotly shapes/annotations — no extra plotting library needed.
+    sets_dict: {label: set(gene_symbols)} with 2 or 3 entries."""
+    names = list(sets_dict.keys())
+    colors = ["#205493", "#e8820c", "#1f9d55"]
+
+    fig = go.Figure()
+    fig.update_xaxes(visible=False, range=[-2.2, 2.2])
+    fig.update_yaxes(visible=False, range=[-1.8, 1.8], scaleanchor="x", scaleratio=1)
+
+    if len(names) == 2:
+        A, B = sets_dict[names[0]], sets_dict[names[1]]
+        centers = [(-0.55, 0), (0.55, 0)]
+        radius = 1.1
+        for (cx, cy), color in zip(centers, colors[:2]):
+            fig.add_shape(type="circle", x0=cx - radius, y0=cy - radius,
+                           x1=cx + radius, y1=cy + radius,
+                           line_color=color, fillcolor=color, opacity=0.35)
+        fig.add_annotation(x=-1.1, y=0.85, text=f"<b>{names[0]}</b>", showarrow=False, font=dict(size=13, color=colors[0]))
+        fig.add_annotation(x=1.1, y=0.85, text=f"<b>{names[1]}</b>", showarrow=False, font=dict(size=13, color=colors[1]))
+        fig.add_annotation(x=-0.95, y=0, text=str(len(A - B)), showarrow=False, font=dict(size=16))
+        fig.add_annotation(x=0.95, y=0, text=str(len(B - A)), showarrow=False, font=dict(size=16))
+        fig.add_annotation(x=0, y=0, text=str(len(A & B)), showarrow=False, font=dict(size=16, color="#1a1a1a"))
+    elif len(names) >= 3:
+        names = names[:3]
+        A, B, C = sets_dict[names[0]], sets_dict[names[1]], sets_dict[names[2]]
+        centers = [(-0.55, 0.35), (0.55, 0.35), (0, -0.55)]
+        radius = 1.15
+        for (cx, cy), color in zip(centers, colors):
+            fig.add_shape(type="circle", x0=cx - radius, y0=cy - radius,
+                           x1=cx + radius, y1=cy + radius,
+                           line_color=color, fillcolor=color, opacity=0.3)
+        fig.add_annotation(x=-1.15, y=1.35, text=f"<b>{names[0]}</b>", showarrow=False, font=dict(size=12, color=colors[0]))
+        fig.add_annotation(x=1.15, y=1.35, text=f"<b>{names[1]}</b>", showarrow=False, font=dict(size=12, color=colors[1]))
+        fig.add_annotation(x=0, y=-1.55, text=f"<b>{names[2]}</b>", showarrow=False, font=dict(size=12, color=colors[2]))
+
+        only_a = len(A - B - C)
+        only_b = len(B - A - C)
+        only_c = len(C - A - B)
+        ab = len((A & B) - C)
+        ac = len((A & C) - B)
+        bc = len((B & C) - A)
+        abc = len(A & B & C)
+
+        fig.add_annotation(x=-0.85, y=0.65, text=str(only_a), showarrow=False, font=dict(size=15))
+        fig.add_annotation(x=0.85, y=0.65, text=str(only_b), showarrow=False, font=dict(size=15))
+        fig.add_annotation(x=0, y=-0.95, text=str(only_c), showarrow=False, font=dict(size=15))
+        fig.add_annotation(x=0, y=0.55, text=str(ab), showarrow=False, font=dict(size=14))
+        fig.add_annotation(x=-0.55, y=-0.15, text=str(ac), showarrow=False, font=dict(size=14))
+        fig.add_annotation(x=0.55, y=-0.15, text=str(bc), showarrow=False, font=dict(size=14))
+        fig.add_annotation(x=0, y=0.1, text=f"<b>{abc}</b>", showarrow=False, font=dict(size=14, color="#1a1a1a"))
+
+    fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10),
+                       plot_bgcolor='white', paper_bgcolor='white')
+    return fig
+
+
 # ════════════════════════════════════════════════════════════════
 # SIDEBAR — References
 # ════════════════════════════════════════════════════════════════
@@ -871,6 +929,82 @@ with tab_search:
             st.markdown('<div class="section-header">🧭 Genes Annotated to These GO Terms</div>', unsafe_allow_html=True)
             go_df = pd.DataFrame(go_gene_rows).drop_duplicates(subset=["Gene"])
             st.dataframe(go_df, use_container_width=True, hide_index=True)
+
+        # ── VISUAL SUMMARY: bar graph, heatmap, Venn diagram ──────
+        if found_any:
+            db_gene_set = set(df['gene_symbol'].tolist()) if not df.empty else set()
+            if not kw_matches.empty:
+                db_gene_set |= set(kw_matches['gene_symbol'].tolist())
+            seed_gene_set = set()
+            for pdata in seed_matches.values():
+                seed_gene_set |= {g['symbol'] for g in pdata['seed_genes']}
+            ncbi_gene_set = {h['symbol'] for h in ncbi_hits if h.get('symbol')}
+            if ncbi_exact:
+                ncbi_gene_set.add(ncbi_exact['official_symbol'])
+            go_gene_set = {row['Gene'] for row in go_gene_rows}
+
+            st.markdown('<div class="section-header">📊 Visual Summary</div>', unsafe_allow_html=True)
+
+            # -- 1. Bar graph: genes found per source --
+            source_counts = {
+                "This Database": len(db_gene_set),
+                "Literature Seed Set": len(seed_gene_set),
+                "Live NCBI Gene": len(ncbi_gene_set),
+                "Live Gene Ontology": len(go_gene_set),
+            }
+            bar_df = pd.DataFrame({"Source": list(source_counts.keys()), "Genes Found": list(source_counts.values())})
+            fig_bar = px.bar(bar_df, x="Source", y="Genes Found", color="Source",
+                              color_discrete_sequence=["#1f9d55", "#6a1a9c", "#205493", "#e8820c"],
+                              title=f'Genes Found per Source — "{raw_query.strip()}"')
+            fig_bar.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+            st.plotly_chart(fig_bar, use_container_width=True, key="bar_sources")
+
+            # -- 2. Heatmap: gene x season fold-change (curated DB genes only, capped) --
+            heatmap_genes = sorted(db_gene_set)[:15]
+            if len(heatmap_genes) >= 1:
+                placeholders_h = ",".join(["%s"] * len(heatmap_genes))
+                heat_query = f"""
+                    SELECT g.gene_symbol, s.name AS season, gsf.fold_change
+                    FROM gene_seasonal_function gsf
+                    JOIN genes g ON gsf.gene_id = g.id
+                    JOIN seasons s ON gsf.season_id = s.id
+                    WHERE g.gene_symbol IN ({placeholders_h})
+                """
+                try:
+                    heat_df = pd.read_sql(heat_query, conn, params=heatmap_genes)
+                except Exception:
+                    heat_df = pd.DataFrame()
+
+                if not heat_df.empty:
+                    pivot = heat_df.pivot_table(index='gene_symbol', columns='season',
+                                                 values='fold_change', aggfunc='mean')
+                    season_order = [s for s in ['Winter', 'Spring', 'Summer', 'Autumn'] if s in pivot.columns]
+                    pivot = pivot[season_order]
+                    fig_heat = px.imshow(pivot, text_auto=".2f", aspect="auto",
+                                          color_continuous_scale="RdBu_r",
+                                          labels=dict(x="Season", y="Gene", color="Fold Change"),
+                                          title="Fold Change Heatmap — Gene × Season (this database)")
+                    fig_heat.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                    st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_genes")
+                else:
+                    st.caption("No per-season fold-change data curated yet for the matched gene(s) — heatmap needs at least one curated database row.")
+
+            # -- 3. Venn diagram: overlap between DB / NCBI / GO gene sets --
+            venn_sets = {}
+            if db_gene_set:
+                venn_sets["This Database"] = db_gene_set
+            if ncbi_gene_set:
+                venn_sets["NCBI Gene"] = ncbi_gene_set
+            if go_gene_set:
+                venn_sets["Gene Ontology"] = go_gene_set
+
+            if len(venn_sets) >= 2:
+                st.markdown("**Source Overlap (Venn Diagram)**")
+                st.caption("Schematic (not area-proportional) — shows which genes are found in more than one source.")
+                fig_venn = render_venn(venn_sets)
+                st.plotly_chart(fig_venn, use_container_width=True, key="venn_sources")
+            else:
+                st.caption("Only one source returned genes for this query, so a Venn diagram isn't meaningful here.")
 
         # ── FINAL: clean "Not Found" only if truly nothing anywhere ──
         if not found_any:
