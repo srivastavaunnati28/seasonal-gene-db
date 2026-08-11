@@ -1,0 +1,21 @@
+# Google App Engine generated folder
+appengine-generated/
+
+# Secrets — never commit credentials
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+
+# Data exports
+*.csv
+!All_288_genes.csv
