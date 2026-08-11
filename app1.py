@@ -253,6 +253,73 @@ except mysql.connector.Error:
 
 conn.commit()
 
+# ── Schema migrations for scientific-rigor features ──────────────
+# Each ALTER is attempted independently and rolled back silently if the
+# column already exists, so this block is safe to run on every app start.
+_SCHEMA_MIGRATIONS = [
+    # Statistical rigor: p-value, sample size, confidence interval per curated row
+    ("gene_seasonal_function", "ADD COLUMN p_value DECIMAL(10,6) DEFAULT NULL"),
+    ("gene_seasonal_function", "ADD COLUMN sample_size INT DEFAULT NULL"),
+    ("gene_seasonal_function", "ADD COLUMN ci_lower DECIMAL(8,3) DEFAULT NULL"),
+    ("gene_seasonal_function", "ADD COLUMN ci_upper DECIMAL(8,3) DEFAULT NULL"),
+    # Evidence grading per curated row
+    ("gene_seasonal_function", "ADD COLUMN evidence_level VARCHAR(40) DEFAULT NULL"),
+    # HGNC / Ensembl / UniProt validated identifiers per gene
+    ("genes", "ADD COLUMN hgnc_id VARCHAR(20) DEFAULT NULL"),
+    ("genes", "ADD COLUMN ensembl_id VARCHAR(30) DEFAULT NULL"),
+    ("genes", "ADD COLUMN uniprot_id VARCHAR(20) DEFAULT NULL"),
+    ("genes", "ADD COLUMN symbol_validated_at TIMESTAMP NULL DEFAULT NULL"),
+    # Community contributions: moderation queue + same rigor/ID fields
+    ("community_contributions", "ADD COLUMN status VARCHAR(10) DEFAULT 'pending'"),
+    ("community_contributions", "ADD COLUMN p_value DECIMAL(10,6) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN sample_size INT DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN ci_lower DECIMAL(8,3) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN ci_upper DECIMAL(8,3) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN evidence_level VARCHAR(40) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN hgnc_id VARCHAR(20) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN ensembl_id VARCHAR(30) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN uniprot_id VARCHAR(20) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN reviewed_by VARCHAR(100) DEFAULT NULL"),
+    ("community_contributions", "ADD COLUMN reviewed_at TIMESTAMP NULL DEFAULT NULL"),
+]
+for _table, _clause in _SCHEMA_MIGRATIONS:
+    try:
+        setup_cursor.execute(f"ALTER TABLE {_table} {_clause}")
+        conn.commit()
+    except mysql.connector.Error:
+        conn.rollback()
+
+# Dataset versioning table — one row tracks the current version/citation info
+setup_cursor.execute("""
+CREATE TABLE IF NOT EXISTS dataset_meta (
+    id INT PRIMARY KEY DEFAULT 1,
+    version VARCHAR(20) DEFAULT 'v1.0',
+    doi VARCHAR(100) DEFAULT NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    notes VARCHAR(300) DEFAULT NULL
+)""")
+conn.commit()
+setup_cursor.execute("SELECT COUNT(*) FROM dataset_meta")
+if setup_cursor.fetchone()[0] == 0:
+    setup_cursor.execute(
+        "INSERT INTO dataset_meta (id, version, doi, notes) VALUES (1, %s, %s, %s)",
+        ("v1.0", None, "Initial release")
+    )
+    conn.commit()
+
+EVIDENCE_LEVELS = [
+    "Direct experimental (this study)",
+    "Inferred (homolog/ortholog)",
+    "Predicted/computational",
+    "Literature-established (secondary review)",
+]
+
+CONTRIBUTION_STATUS_LABELS = {
+    "pending": "🕓 Pending Review",
+    "approved": "✅ Approved",
+    "rejected": "❌ Rejected",
+}
+
 # Map each season to its typical photoperiod condition (used to backfill
 # photoperiod_condition where it hasn't been manually set yet)
 SEASON_TO_PHOTOPERIOD = {
@@ -448,6 +515,122 @@ def uniprot_search_url(gene_symbol: str) -> str:
     return f"https://www.uniprot.org/uniprotkb?query={gene_symbol}+AND+organism_id:9606"
 
 
+# ════════════════════════════════════════════════════════════════
+# HGNC IDENTIFIER VALIDATION
+# Confirms a gene symbol against the official HGNC registry and
+# resolves it to stable Ensembl/UniProt identifiers, so entries are
+# matched by ID rather than by (typo-prone) free-text symbol alone.
+# ════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=60 * 60 * 24 * 7, show_spinner=False)
+def fetch_hgnc_info(gene_symbol: str):
+    """Validate gene_symbol against HGNC. Tries an exact current-symbol
+    fetch first, then falls back to a symbol search (covers aliases/
+    previous symbols). Returns None if HGNC has no record at all —
+    the caller should treat that as 'symbol not officially validated',
+    not necessarily 'gene does not exist' (HGNC only covers human)."""
+    headers = {"Accept": "application/json"}
+    try:
+        url = f"https://rest.genenames.org/fetch/symbol/{gene_symbol.upper()}"
+        r = requests.get(url, headers=headers, timeout=6)
+        r.raise_for_status()
+        docs = r.json().get("response", {}).get("docs", [])
+
+        if not docs:
+            search_url = f"https://rest.genenames.org/search/symbol/{gene_symbol.upper()}"
+            r2 = requests.get(search_url, headers=headers, timeout=6)
+            r2.raise_for_status()
+            hits = r2.json().get("response", {}).get("docs", [])
+            if not hits:
+                return None
+            hgnc_id = hits[0].get("hgnc_id")
+            r3 = requests.get(f"https://rest.genenames.org/fetch/hgnc_id/{hgnc_id}",
+                               headers=headers, timeout=6)
+            r3.raise_for_status()
+            docs = r3.json().get("response", {}).get("docs", [])
+            if not docs:
+                return None
+
+        d = docs[0]
+        uniprot_ids = d.get("uniprot_ids") or []
+        return {
+            "hgnc_id": d.get("hgnc_id", ""),
+            "official_symbol": d.get("symbol", gene_symbol.upper()),
+            "official_name": d.get("name", ""),
+            "ensembl_id": d.get("ensembl_gene_id", "") or "",
+            "uniprot_id": uniprot_ids[0] if uniprot_ids else "",
+            "locus_type": d.get("locus_type", ""),
+            "hgnc_url": f"https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/{d.get('hgnc_id','')}",
+        }
+    except Exception:
+        return None
+
+
+def hgnc_badge(hgnc_info):
+    """Small inline badge showing HGNC validation status."""
+    if hgnc_info:
+        return (f'<span class="source-tag source-tag-db">✔ HGNC validated · '
+                f'{hgnc_info["hgnc_id"]}</span>')
+    return '<span class="source-tag" style="background:#fdf0e3;border-color:#e6c393;color:#9c5a17;">⚠ Not HGNC-validated</span>'
+
+
+def evidence_level_badge(level: str) -> str:
+    """Color-coded badge for the evidence-grading tier of a curated row."""
+    if not level:
+        return '<span class="evidence-badge evidence-single">Evidence level not specified</span>'
+    colors = {
+        "Direct experimental (this study)": "evidence-replicated",
+        "Inferred (homolog/ortholog)": "evidence-single",
+        "Predicted/computational": "evidence-single",
+        "Literature-established (secondary review)": "evidence-replicated",
+    }
+    css_class = colors.get(level, "evidence-single")
+    return f'<span class="evidence-badge {css_class}">{level}</span>'
+
+
+def is_valid_source_reference(ref: str) -> bool:
+    """Require a real, checkable citation: a PMID (digits, optionally
+    prefixed 'PMID'), a DOI (starts with '10.'), or a GEO accession
+    (starts with GSE/GSM/GDS). Rejects bare/arbitrary URLs so every
+    contribution is traceable to a formal, citable record."""
+    import re
+    ref = ref.strip()
+    if not ref:
+        return False
+    patterns = [
+        r'^(PMID:?\s*)?\d{4,9}$',                 # PMID
+        r'^10\.\d{4,9}/\S+$',                      # DOI
+        r'^GSE\d+$', r'^GSM\d+$', r'^GDS\d+$',     # GEO accessions
+    ]
+    return any(re.match(p, ref, re.IGNORECASE) for p in patterns)
+
+
+@st.cache_data(ttl=60 * 5, show_spinner=False)
+def get_dataset_meta(_conn):
+    try:
+        df = pd.read_sql("SELECT version, doi, last_updated, notes FROM dataset_meta WHERE id = 1", _conn)
+        if not df.empty:
+            return df.iloc[0].to_dict()
+    except Exception:
+        pass
+    return {"version": "v1.0", "doi": None, "last_updated": None, "notes": None}
+
+
+def generate_bibtex_citation(meta: dict) -> str:
+    year = "2026"
+    version = meta.get("version") or "v1.0"
+    doi_line = f"  doi = {{{meta['doi']}}},\n" if meta.get("doi") else ""
+    return (
+        "@misc{seasonal_gene_db_" + year + ",\n"
+        "  author = {S. Unnati},\n"
+        "  title = {Seasonal Physiology Gene Database},\n"
+        f"  year = {{{year}}},\n"
+        f"  note = {{Version {version}}},\n"
+        f"{doi_line}"
+        "  howpublished = {\\url{https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/}}\n"
+        "}"
+    )
+
+
 def evidence_badge(n_sources: int) -> str:
     if n_sources >= 2:
         return '<span class="evidence-badge evidence-replicated">Replicated across ≥2 entries</span>'
@@ -635,12 +818,20 @@ with st.sidebar:
         st.caption("Individual gene entries also cite a PMID/reference — see the "
                    "'Reference (PMID)' column in each result table.")
 
+    _meta = get_dataset_meta(conn)
+    st.caption(
+        f"**Dataset version:** {_meta.get('version') or 'v1.0'}"
+        + (f" · DOI: {_meta.get('doi')}" if _meta.get('doi') else "")
+        + (f"  \nLast updated: {_meta.get('last_updated')}" if _meta.get('last_updated') else "")
+    )
     st.caption("Suggested citation for this tool:")
     st.code(
         "S.Unnati (2026). Seasonal Physiology Gene Database.\n"
         "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
         language=None
     )
+    with st.expander("Export as BibTeX"):
+        st.code(generate_bibtex_citation(_meta), language=None)
 
 # ════════════════════════════════════════════════════════════════
 # HEADER
@@ -808,11 +999,12 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
 
     # Curated quantitative data (season-by-season), if any
     gene_query = """
-        SELECT g.full_name, g.category,
+        SELECT g.full_name, g.category, g.hgnc_id, g.ensembl_id, g.uniprot_id,
                s.name AS season, gsf.expression_level,
                gsf.fold_change, gsf.functional_role,
                gsf.pathway, gsf.tissue_type, gsf.study_reference,
-               gsf.photoperiod_condition
+               gsf.photoperiod_condition, gsf.p_value, gsf.sample_size,
+               gsf.ci_lower, gsf.ci_upper, gsf.evidence_level
         FROM gene_seasonal_function gsf
         JOIN genes g ON gsf.gene_id = g.id
         JOIN seasons s ON gsf.season_id = s.id
@@ -830,11 +1022,43 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
     category = df['category'][0] if not df.empty else (seed_pname or "Uncategorized")
     n_evidence = df['study_reference'].nunique() if not df.empty else 0
 
+    # HGNC identifier validation — resolve+cache official IDs the first
+    # time a gene is looked up, store them back on the genes row so
+    # future searches don't re-hit the HGNC API.
+    hgnc_info = None
+    stored_hgnc = df['hgnc_id'][0] if not df.empty else None
+    if not df.empty and pd.notna(stored_hgnc) and stored_hgnc:
+        hgnc_info = {
+            "hgnc_id": stored_hgnc,
+            "ensembl_id": df['ensembl_id'][0] if pd.notna(df['ensembl_id'][0]) else "",
+            "uniprot_id": df['uniprot_id'][0] if pd.notna(df['uniprot_id'][0]) else "",
+        }
+    else:
+        hgnc_info = fetch_hgnc_info(symbol)
+        if hgnc_info and not df.empty:
+            try:
+                upd = conn.cursor()
+                upd.execute(
+                    "UPDATE genes SET hgnc_id=%s, ensembl_id=%s, uniprot_id=%s, symbol_validated_at=NOW() "
+                    "WHERE gene_symbol=%s",
+                    (hgnc_info["hgnc_id"], hgnc_info["ensembl_id"], hgnc_info["uniprot_id"], symbol)
+                )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
     # ── Fixed Section 1: header ──────────────────────────────────
+    id_line = ""
+    if hgnc_info:
+        id_line = (f'<div class="gene-meta">HGNC: {hgnc_info.get("hgnc_id","—")}'
+                    f' &nbsp;·&nbsp; Ensembl: {hgnc_info.get("ensembl_id") or "—"}'
+                    f' &nbsp;·&nbsp; UniProt: {hgnc_info.get("uniprot_id") or "—"}</div>')
     st.markdown(f"""
     <div class="result-box">
         <span class="gene-name">{symbol}</span>{evidence_badge(max(n_evidence, 1 if seed_role else 0))}
+        {hgnc_badge(hgnc_info)}
         <div class="gene-meta">{full_name} &nbsp;·&nbsp; Category: {category}</div>
+        {id_line}
     </div>
     """, unsafe_allow_html=True)
 
@@ -907,12 +1131,31 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
         fig.update_xaxes(title_text="Season")
         st.plotly_chart(fig, use_container_width=True, key=f"chart_{symbol}")
 
+        st.markdown('<div class="section-header">Evidence Grading (per row)</div>', unsafe_allow_html=True)
+        for _, r in df.iterrows():
+            stat_bits = []
+            if pd.notna(r.get('p_value')):
+                stat_bits.append(f"p = {r['p_value']}")
+            if pd.notna(r.get('sample_size')):
+                stat_bits.append(f"n = {int(r['sample_size'])}")
+            if pd.notna(r.get('ci_lower')) and pd.notna(r.get('ci_upper')):
+                stat_bits.append(f"95% CI [{r['ci_lower']}, {r['ci_upper']}]")
+            stat_str = " &nbsp;·&nbsp; ".join(stat_bits) if stat_bits else "No p-value/CI/sample size curated for this row"
+            st.markdown(
+                f'{r["season"]} ({r["photoperiod_condition"]}): {evidence_level_badge(r.get("evidence_level"))} '
+                f'&nbsp; <span style="font-size:12px;color:#35526e;">{stat_str}</span>',
+                unsafe_allow_html=True
+            )
+
         st.markdown('<div class="section-header">Full Data Table</div>', unsafe_allow_html=True)
         st.dataframe(
             df[['season', 'photoperiod_condition', 'expression_level', 'fold_change',
+                'p_value', 'sample_size', 'ci_lower', 'ci_upper', 'evidence_level',
                 'pathway', 'tissue_type', 'study_reference']].rename(columns={
                 'season': 'Season', 'photoperiod_condition': 'Photoperiod',
                 'expression_level': 'Expression', 'fold_change': 'Fold Change',
+                'p_value': 'p-value', 'sample_size': 'n', 'ci_lower': 'CI Lower',
+                'ci_upper': 'CI Upper', 'evidence_level': 'Evidence Level',
                 'pathway': 'Pathway', 'tissue_type': 'Tissue', 'study_reference': 'Reference (PMID)'
             }),
             use_container_width=True
@@ -927,24 +1170,28 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
     else:
         st.markdown('<div class="xref-box">No quantitative season/photoperiod fold-change data has been curated for this gene yet — it is included here on the strength of its established literature role (see above). Contribute quantitative data via the <b>Contribute Data</b> tab.</div>', unsafe_allow_html=True)
 
-    # ── Fixed Section 4: Community-contributed data ──────────────
+    # ── Fixed Section 4: Community-contributed data (approved only) ──
+    # Contributions sit in a moderation queue (status='pending') until an
+    # admin approves them in the Admin tab — only approved rows are shown
+    # here, so unverified data never appears mixed in with public results.
     try:
         comm_df = pd.read_sql(
             """SELECT season_or_condition AS "Season/Condition", expression_level AS "Expression",
-                      fold_change AS "Fold Change", functional_role AS "Functional Role",
+                      fold_change AS "Fold Change", p_value AS "p-value", sample_size AS "n",
+                      evidence_level AS "Evidence Level", functional_role AS "Functional Role",
                       pathway AS "Pathway", tissue_type AS "Tissue", source_db AS "Source DB",
                       source_reference AS "Reference", contributor_name AS "Contributor",
                       submitted_at AS "Submitted"
                FROM community_contributions
-               WHERE gene_symbol = %s
+               WHERE gene_symbol = %s AND status = 'approved'
                ORDER BY submitted_at DESC""",
             conn, params=[symbol]
         )
     except Exception:
         comm_df = pd.DataFrame()
     if not comm_df.empty:
-        st.markdown('<div class="section-header">🌍 Community-Contributed Data</div>', unsafe_allow_html=True)
-        st.caption("Submitted directly by users — not independently verified by the project author.")
+        st.markdown('<div class="section-header">🌍 Community-Contributed Data (Reviewed)</div>', unsafe_allow_html=True)
+        st.caption("Approved by an admin after review. Still independently verify against the listed source before citing.")
         st.dataframe(comm_df, use_container_width=True)
 
     # ── Fixed Section 5: live NCBI cross-reference (enrichment only) ──
@@ -1188,8 +1435,12 @@ with tab_compare:
 # ════════════════════════════════════════════════════════════════
 with tab_contribute:
     st.markdown('<div class="section-header">Add Your Own Curated Data</div>', unsafe_allow_html=True)
-    st.caption("Submissions are published immediately and are not reviewed before appearing publicly. "
-               "Please cite a real source (NCBI, CircaDB, PubMed, GEO, or UniProt) wherever possible.")
+    st.caption(
+        "Submissions go into a **moderation queue** and are reviewed by an admin before appearing "
+        "publicly or in search results (see the Admin tab). A real, checkable source is required — "
+        "a PMID (e.g. 21781060), a DOI (e.g. 10.1038/nature06738), or a GEO accession "
+        "(e.g. GSE123456). Plain URLs are not accepted, since links break and can't be verified later."
+    )
 
     with st.form("contribute_form", clear_on_submit=True):
         c1, c2 = st.columns(2)
@@ -1200,41 +1451,79 @@ with tab_contribute:
                  "SD (Short-Day, general)", "LD (Long-Day, general)"])
             f_expression = st.selectbox("Expression Level *", ["HIGH", "NORMAL", "LOW"])
             f_fold = st.number_input("Fold Change", min_value=0.0, max_value=20.0, value=1.0, step=0.1)
+            f_evidence = st.selectbox("Evidence Level *", EVIDENCE_LEVELS)
         with c2:
             f_pathway = st.text_input("Pathway", placeholder="e.g. Melatonin Synthesis, Circadian Rhythm")
             f_tissue = st.text_input("Tissue Type", placeholder="e.g. Liver, SCN, Pineal Gland")
             f_source_db = st.selectbox("Source Database *",
                 ["NCBI", "CircaDB", "PubMed", "GEO Datasets", "UniProt", "Gene Ontology", "Other"])
-            f_source_ref = st.text_input("Source Reference *", placeholder="PMID, GEO accession, or URL")
+            f_source_ref = st.text_input("Source Reference * (PMID / DOI / GEO accession)",
+                                          placeholder="e.g. 21781060  or  10.1038/nature06738  or  GSE123456")
+
+        st.markdown("**Statistical detail (optional but strongly encouraged)**")
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            f_pvalue = st.number_input("p-value", min_value=0.0, max_value=1.0, value=None,
+                                        step=0.001, format="%.4f", placeholder="e.g. 0.032")
+        with s2:
+            f_n = st.number_input("Sample size (n)", min_value=0, value=None, step=1, placeholder="e.g. 12")
+        with s3:
+            ci_col1, ci_col2 = st.columns(2)
+            f_ci_lower = ci_col1.number_input("95% CI lower", value=None, step=0.1, format="%.2f")
+            f_ci_upper = ci_col2.number_input("95% CI upper", value=None, step=0.1, format="%.2f")
 
         f_role = st.text_area("Functional Role / Notes", placeholder="Describe the gene's seasonal/photoperiod role...")
         f_contributor = st.text_input("Your Name (optional)", placeholder="Anonymous if left blank")
 
-        submitted = st.form_submit_button("Submit Contribution")
+        submitted = st.form_submit_button("Submit for Review")
 
         if submitted:
             if not f_gene or not f_source_ref:
                 st.error("Gene Symbol and Source Reference are required.")
+            elif not is_valid_source_reference(f_source_ref):
+                st.error(
+                    "Source Reference must be a PMID (digits only, optionally prefixed 'PMID'), "
+                    "a DOI (starting with '10.'), or a GEO accession (GSE/GSM/GDS + digits). "
+                    "Plain URLs aren't accepted — please find the underlying PMID/DOI/accession."
+                )
             else:
+                symbol_clean = f_gene.upper().strip()
+                hgnc_info = fetch_hgnc_info(symbol_clean)
                 ins_cursor = conn.cursor()
                 ins_cursor.execute("""
                     INSERT INTO community_contributions
                     (gene_symbol, season_or_condition, expression_level, fold_change,
                      functional_role, pathway, tissue_type, source_db, source_reference,
-                     contributor_name)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                     contributor_name, status, p_value, sample_size, ci_lower, ci_upper,
+                     evidence_level, hgnc_id, ensembl_id, uniprot_id)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'pending',%s,%s,%s,%s,%s,%s,%s,%s)
                 """, (
-                    f_gene.upper().strip(), f_condition, f_expression, f_fold,
-                    f_role, f_pathway, f_tissue, f_source_db, f_source_ref,
-                    f_contributor if f_contributor else "Anonymous"
+                    symbol_clean, f_condition, f_expression, f_fold,
+                    f_role, f_pathway, f_tissue, f_source_db, f_source_ref.strip(),
+                    f_contributor if f_contributor else "Anonymous",
+                    f_pvalue, f_n, f_ci_lower, f_ci_upper, f_evidence,
+                    hgnc_info["hgnc_id"] if hgnc_info else None,
+                    hgnc_info["ensembl_id"] if hgnc_info else None,
+                    hgnc_info["uniprot_id"] if hgnc_info else None,
                 ))
                 conn.commit()
-                st.success(f"Thank you. Your data for {f_gene.upper()} is now live and publicly visible.")
+                if hgnc_info:
+                    st.success(
+                        f"Thank you. Your submission for {symbol_clean} (HGNC-validated: {hgnc_info['hgnc_id']}) "
+                        f"is now in the moderation queue and will appear publicly once an admin approves it."
+                    )
+                else:
+                    st.warning(
+                        f"Submitted for {symbol_clean}, but this symbol could not be validated against HGNC "
+                        f"(it may be non-human, an unofficial alias, or a typo). It has been queued for review; "
+                        f"an admin can still approve it manually if the symbol is correct."
+                    )
 
     st.markdown('<div class="section-header">Recent Community Submissions</div>', unsafe_allow_html=True)
     recent_query = """
         SELECT gene_symbol AS "Gene", season_or_condition AS "Condition",
-               expression_level AS "Expression", source_db AS "Source",
+               expression_level AS "Expression", evidence_level AS "Evidence Level",
+               status AS "Status", source_db AS "Source",
                contributor_name AS "Contributor", submitted_at AS "Submitted"
         FROM community_contributions
         ORDER BY submitted_at DESC
@@ -1242,7 +1531,9 @@ with tab_contribute:
     """
     recent_df = pd.read_sql(recent_query, conn)
     if not recent_df.empty:
+        recent_df["Status"] = recent_df["Status"].map(lambda s: CONTRIBUTION_STATUS_LABELS.get(s, s))
         st.dataframe(recent_df, use_container_width=True)
+        st.caption("Only 'Approved' submissions appear in the Universal Search results and gene cards.")
     else:
         st.caption("No community submissions yet.")
 
@@ -1363,6 +1654,46 @@ with tab_methods:
     - This is a curation and cross-referencing tool, not a primary data source —
       always confirm critical values against the cited original publication or
       database record before use in a manuscript.
+
+    **9. Identifier validation (HGNC)**
+    Every gene symbol shown in a result card is checked against the official
+    **HGNC** registry (rest.genenames.org) and, where matched, displayed with
+    its stable **HGNC ID**, **Ensembl Gene ID**, and **UniProt accession** —
+    so entries are traceable by ID, not just by a free-text symbol that could
+    be an outdated alias or a typo. A "⚠ Not HGNC-validated" badge appears
+    where no match was found (common for non-human symbols or aliases);
+    this is a caution flag, not proof the gene doesn't exist.
+
+    **10. Statistical rigor**
+    Curated rows may carry a **p-value**, **sample size (n)**, and **95%
+    confidence interval** alongside the expression call and fold change.
+    Where these are absent, the table shows this explicitly rather than
+    implying a value that wasn't reported in the source. Fold-change alone,
+    without a reported p-value, should be treated as descriptive rather
+    than as evidence of statistical significance.
+
+    **11. Evidence grading**
+    Each curated row is tagged with one of four evidence tiers: **Direct
+    experimental (this study)**, **Inferred (homolog/ortholog)**,
+    **Predicted/computational**, or **Literature-established (secondary
+    review)** — the last covering the textbook-level seed gene sets in
+    the Photoperiod/Melatonin, Circadian Clock, Seasonal Reproduction, and
+    Thyroid-Switch pathways. This distinguishes primary experimental
+    findings from literature synthesis and computational prediction.
+
+    **12. Community contribution moderation**
+    Submissions via the Contribute tab now enter a **pending-review queue**
+    and are only shown in search results or gene cards after an admin
+    approves them in the Admin tab. Submitted source references must be a
+    verifiable **PMID, DOI, or GEO accession** — plain URLs are rejected —
+    and the gene symbol is checked against HGNC at submission time.
+
+    **13. Dataset versioning & citation**
+    The database carries an explicit **version label** and **last-updated
+    timestamp** (shown in the sidebar), optionally linked to a **DOI**
+    (e.g. via Zenodo) once the project author registers one. A ready-made
+    **BibTeX citation** is available in the sidebar for anyone citing this
+    tool in a manuscript.
     """)
 
     st.markdown('<div class="section-header">Suggested Citation</div>', unsafe_allow_html=True)
@@ -1376,7 +1707,7 @@ with tab_methods:
 # TAB 6 — ADMIN: BULK IMPORT (password-protected)
 # ════════════════════════════════════════════════════════════════
 with tab_admin:
-    st.markdown('<div class="section-header">Bulk Import Genes from CSV</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">🔐 Admin Panel — Moderation, Versioning & Import</div>', unsafe_allow_html=True)
 
     ADMIN_PASSWORD = st.secrets.get("ADMIN_PASSWORD", None)
 
@@ -1393,7 +1724,74 @@ with tab_admin:
                 st.warning("Incorrect password.")
             st.stop()
 
-        st.success("Authenticated. You can import gene data below.")
+        st.success("Authenticated. You can moderate contributions, manage versioning, or bulk import below.")
+
+        # ── Moderation queue ───────────────────────────────────
+        st.markdown('<div class="section-header">🗂 Review Pending Community Contributions</div>', unsafe_allow_html=True)
+        pending_df = pd.read_sql(
+            """SELECT id, gene_symbol, season_or_condition, expression_level, fold_change,
+                      evidence_level, p_value, sample_size, source_db, source_reference,
+                      hgnc_id, functional_role, contributor_name, submitted_at
+               FROM community_contributions
+               WHERE status = 'pending'
+               ORDER BY submitted_at ASC""",
+            conn
+        )
+        if pending_df.empty:
+            st.caption("No pending submissions — moderation queue is empty.")
+        else:
+            st.caption(f"{len(pending_df)} submission(s) awaiting review.")
+            for _, row in pending_df.iterrows():
+                with st.expander(f"{row['gene_symbol']} — {row['season_or_condition']} — submitted by {row['contributor_name']}"):
+                    hgnc_line = f"HGNC-validated ({row['hgnc_id']})" if pd.notna(row['hgnc_id']) and row['hgnc_id'] else "⚠ Not HGNC-validated"
+                    st.markdown(f"""
+                    - **Expression:** {row['expression_level']} ({row['fold_change']}x)
+                    - **Evidence level:** {row['evidence_level'] or 'Not specified'}
+                    - **Stats:** p={row['p_value']}, n={row['sample_size']}
+                    - **Source:** {row['source_db']} — {row['source_reference']}
+                    - **Symbol check:** {hgnc_line}
+                    - **Notes:** {row['functional_role'] or '—'}
+                    """)
+                    admin_name = st.text_input("Reviewer name", value="Admin", key=f"reviewer_{row['id']}")
+                    bcol1, bcol2 = st.columns(2)
+                    if bcol1.button("✅ Approve", key=f"approve_{row['id']}"):
+                        rc = conn.cursor()
+                        rc.execute(
+                            "UPDATE community_contributions SET status='approved', reviewed_by=%s, reviewed_at=NOW() WHERE id=%s",
+                            (admin_name, int(row['id']))
+                        )
+                        conn.commit()
+                        st.rerun()
+                    if bcol2.button("❌ Reject", key=f"reject_{row['id']}"):
+                        rc = conn.cursor()
+                        rc.execute(
+                            "UPDATE community_contributions SET status='rejected', reviewed_by=%s, reviewed_at=NOW() WHERE id=%s",
+                            (admin_name, int(row['id']))
+                        )
+                        conn.commit()
+                        st.rerun()
+
+        # ── Dataset versioning & citation ───────────────────────
+        st.markdown('<div class="section-header">🏷 Dataset Versioning & Citation</div>', unsafe_allow_html=True)
+        current_meta = get_dataset_meta(conn)
+        vcol1, vcol2 = st.columns(2)
+        with vcol1:
+            new_version = st.text_input("Version label", value=current_meta.get("version") or "v1.0")
+            new_doi = st.text_input("DOI (optional, e.g. from Zenodo)", value=current_meta.get("doi") or "")
+        with vcol2:
+            new_notes = st.text_area("Release notes", value=current_meta.get("notes") or "", height=100)
+        if st.button("Save version info"):
+            vc = conn.cursor()
+            vc.execute(
+                "UPDATE dataset_meta SET version=%s, doi=%s, notes=%s, last_updated=NOW() WHERE id=1",
+                (new_version.strip(), new_doi.strip() or None, new_notes.strip() or None)
+            )
+            conn.commit()
+            get_dataset_meta.clear()
+            st.success("Dataset version info updated.")
+            st.rerun()
+
+        st.markdown('<div class="section-header">Bulk Import Genes from CSV</div>', unsafe_allow_html=True)
         st.caption(
             "Expected CSV format (like `All_288_genes.csv`): a `gene_name` column, "
             "any number of individual replicate columns, and **mean_SD**, **mean_LD**, "
