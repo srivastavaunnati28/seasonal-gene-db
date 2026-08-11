@@ -1,114 +1,163 @@
 # 🧬 Seasonal Physiology Gene Database
 
-**A free, open-access, community-curated database of gene expression across seasons and photoperiods (Short-Day / Long-Day conditions)**
+A curated, **HGNC-validated**, statistically-graded research database of genes
+involved in **photoperiod perception, melatonin signaling, the circadian
+clock, seasonal reproduction, and the thyroid-hormone seasonal switch** —
+cross-referenced live with **NCBI Gene, PubMed, CircaDB, GEO Datasets,
+UniProt, and Gene Ontology**.
 
-🔗 **Live App:** [seasonal-gene-db.streamlit.app](https://seasonal-gene-db-ft7rahwb62udprbv2rxqcc.streamlit.app/)
+**🔗 Live app:** https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/
 
----
-
-## 🌍 What is this?
-
-The **Seasonal Physiology Gene Database** is an open research tool that lets scientists, students, and researchers search and explore how genes are expressed differently under:
-
-- ❄️ **Winter** vs ☀️ **Summer** seasonal conditions
-- 🌑 **Short-Day (SD)** vs 🌅 **Long-Day (LD)** photoperiod conditions
-
-Whether you're studying **circadian rhythms**, **photoperiodism**, **seasonal affective disorder**, **melatonin pathways**, or **plant flowering time** — this database has curated and community-contributed gene expression data all in one place.
+Built for students and researchers working in chronobiology, seasonal
+physiology, and comparative endocrinology who need a single, citable,
+scope-limited resource instead of hunting across five different databases.
 
 ---
 
-## 🔬 Features
+## ✨ Features
 
-- 🔍 **Search any gene** — CLOCK, VDR, FT, CO, DIO2, LEP, PER2, and hundreds more
-- 🌐 **Live NCBI Gene lookup** — if a gene isn't in our curated database, we fetch it live from NCBI Gene and GEO Datasets
-- 📊 **Related GEO Datasets** — links to real short-day/long-day expression experiments from NCBI GEO
-- ✍️ **Community Contributions** — anyone can submit gene expression data with a source reference
-- 📈 **Interactive Charts** — seasonal fold-change bar charts powered by Plotly
-- 🗂 **Browse All Genes** — filter by category (Circadian, Hormonal, Immune, Metabolic, Mood/Brain)
+- **🔍 Universal search** — one search box for gene symbols *or* pathway
+  keywords (e.g. `CLOCK`, `melatonin`, `photoperiod`, `seasonal reproduction`).
+  Results are strictly limited to this database's defined scope — searches
+  outside that scope return a clean **"Not Found"** instead of unrelated
+  noise from general databases.
+- **🧾 Unified result template** — every matched gene is rendered with the
+  same fixed structure (identity → known role → season/photoperiod
+  comparison → statistics → live cross-references), regardless of which
+  internal layer matched it.
+- **🆔 HGNC / Ensembl / UniProt identifier validation** — gene symbols are
+  checked against the official HGNC registry and resolved to stable IDs,
+  not just matched by free-text symbol.
+- **📊 Statistical rigor** — p-values, sample sizes, and 95% confidence
+  intervals are tracked per curated data row, alongside a 4-tier
+  **evidence grading** system (direct experimental / inferred / predicted /
+  literature-established).
+- **🌍 Moderated community contributions** — public submissions enter a
+  review queue and require a verifiable PMID/DOI/GEO accession; nothing
+  appears in search results until an admin approves it.
+- **📈 Interactive visualizations** — season/photoperiod comparison charts,
+  fold-change heatmaps, and multi-gene comparison tools (Plotly).
+- **🏷️ Dataset versioning & citation** — version-labeled releases with an
+  optional DOI (e.g. via Zenodo) and a ready-to-use BibTeX export.
+- **🔗 Live cross-referencing** — confirmed in-scope genes are enriched with
+  live NCBI Gene summaries and PubMed literature search results.
 
 ---
 
-## 🧪 Gene Categories Covered
+## 📖 Scope
 
-| Category | Example Genes |
+This database is intentionally **not** a general-purpose gene database. It
+covers four defined pathways:
+
+| Pathway | Description |
 |---|---|
-| Circadian | CLOCK, PER1, PER2, CRY1, BMAL1 |
-| Hormonal | VDR, LEP, TSHβ, DIO2, DIO3, AANAT |
-| Immune | IL6, TNF, IL1B |
-| Metabolic | ADIPOQ, INS |
-| Mood/Brain | SLC6A4, BDNF |
-| Plant Photoperiod | FT, CO, PHYB, GI, Hd3a, Hd1 |
-| Melatonin Pathway | MTNR1A, AANAT |
+| **Photoperiod / Melatonin Pathway** | Retina → SCN → pineal gland melatonin signaling that encodes night length |
+| **Circadian Clock Core** | The core TTFL (CLOCK/BMAL1/PER/CRY) driving ~24h rhythms |
+| **Seasonal Reproduction (HPG axis)** | Kisspeptin/GnRH circuitry gating breeding season |
+| **Thyroid-Hormone Seasonal Switch** | Pars tuberalis TSH–deiodinase loop converting melatonin duration into a long-day/short-day physiological state |
+
+Queries outside this scope are reported as **Not Found** by design — see the
+in-app **Methodology** tab for full details on evidence grading, statistical
+handling, and search logic.
 
 ---
 
-## 📡 Data Sources
+## 🛠️ Tech Stack
 
-- [NCBI Gene](https://www.ncbi.nlm.nih.gov/gene/)
-- [NCBI GEO Datasets](https://www.ncbi.nlm.nih.gov/gds/)
-- [CircaDB](http://circadb.hogeneschlab.org/)
-- [PubMed](https://pubmed.ncbi.nlm.nih.gov/)
-- [UniProt](https://www.uniprot.org/)
-- Community contributions from researchers worldwide
+- [Streamlit](https://streamlit.io/) — app framework
+- MySQL — curated data storage
+- [Plotly](https://plotly.com/python/) — interactive charts
+- NCBI E-utilities, EBI QuickGO, HGNC REST API — live data cross-referencing
 
 ---
 
-## 🚀 How to Use
+## 🚀 Running Locally
 
-1. Open the app: [Click here](https://seasonal-gene-db-ft7rahwb62udprbv2rxqcc.streamlit.app/)
-2. Go to **🔍 Search** tab
-3. Type any gene symbol (e.g. `CLOCK`, `FT`, `DIO2`, `VDR`)
-4. Instantly see:
-   - Seasonal expression levels (Winter/Spring/Summer/Autumn)
-   - Short-Day vs Long-Day expression pattern
-   - Related GEO datasets with direct links
-   - Community-submitted data
+```bash
+git clone https://github.com/<your-username>/seasonal-gene-db.git
+cd seasonal-gene-db
+pip install -r requirements.txt
+```
 
----
+Create `.streamlit/secrets.toml` with your database credentials:
 
-## ✍️ Contribute Your Data
+```toml
+DB_HOST = "your-mysql-host"
+DB_USER = "your-mysql-user"
+DB_PASSWORD = "your-mysql-password"
+DB_NAME = "your-database-name"
+DB_PORT = "3306"
+ADMIN_PASSWORD = "choose-an-admin-password"
+```
 
-This is a **community-curated** database. If you have gene expression data from a published study, you can contribute directly from the app:
+Then run:
 
-1. Go to **✍️ Contribute Data** tab
-2. Enter gene symbol, condition (SD/LD/Season), expression level, fold change
-3. Add your source (PMID, GEO accession, or URL)
-4. Submit — your data appears **instantly** and publicly
+```bash
+streamlit run app.py
+```
 
----
-
-## 🛠 Tech Stack
-
-- **Frontend:** [Streamlit](https://streamlit.io/)
-- **Database:** MySQL (hosted on [Aiven](https://aiven.io/))
-- **Live Gene Search:** NCBI E-utilities API
-- **Charts:** Plotly Express
-- **Deployment:** Streamlit Cloud
+The app auto-creates/migrates the required tables (`genes`,
+`gene_seasonal_function`, `seasons`, `community_contributions`,
+`dataset_meta`) on first launch.
 
 ---
 
-## 👩‍🔬 About
+## 🗂️ Database Schema (overview)
 
-**Research Project by Unnati Srivastava**
-University of Allahabad, Prayagraj, India
-
-This project was created to make seasonal and photoperiod gene expression data freely accessible to researchers, students, and the global scientific community — without paywalls or login requirements.
-
----
-
-## 📬 Contact & Feedback
-
-Found an error? Want to contribute a dataset? Have suggestions?
-
-- Open a [GitHub Issue](../../issues)
-- Or submit data directly through the **Contribute** tab in the app
+- **`genes`** — gene identity: symbol, full name, category, HGNC/Ensembl/UniProt IDs
+- **`seasons`** — Winter / Spring / Summer / Autumn
+- **`gene_seasonal_function`** — expression level, fold change, p-value,
+  sample size, confidence interval, evidence level, pathway, tissue, and
+  study reference per gene × season
+- **`community_contributions`** — user-submitted rows with a moderation
+  `status` (`pending` / `approved` / `rejected`)
+- **`dataset_meta`** — current version label, DOI, and last-updated timestamp
 
 ---
 
-## 🔑 Keywords
+## 🤝 Contributing
 
-seasonal gene expression, photoperiod gene database, short day long day gene expression, circadian rhythm genes, CLOCK gene seasonal, VDR winter expression, melatonin genes, DIO2 DIO3 photoperiod, plant flowering genes FT CO PHYB, seasonal affective disorder genes, NCBI GEO seasonal datasets, open access gene database, community gene database, Streamlit gene search tool
+Data contributions go through the in-app **Contribute Data** tab (moderated
+before publication). For code contributions:
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Open a pull request describing the change
 
 ---
 
-*Last updated: June 2026 | Open Access | Free to use*
+## 📚 Citation
+
+If you use this database in your research, please cite:
+
+```bibtex
+@misc{seasonal_gene_db_2026,
+  author = {S. Unnati},
+  title = {Seasonal Physiology Gene Database},
+  year = {2026},
+  howpublished = {\url{https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/}}
+}
+```
+
+*(An up-to-date, version-stamped citation — including a DOI once registered
+via Zenodo — is also available from the app's sidebar.)*
+
+---
+
+## 📄 License
+
+- **Code:** MIT License (see [`LICENSE`](LICENSE))
+- **Curated data:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
+  — free to use with attribution
+
+---
+
+## 🔬 Data Sources
+
+[NCBI Gene](https://www.ncbi.nlm.nih.gov/gene) ·
+[PubMed](https://pubmed.ncbi.nlm.nih.gov/) ·
+[CircaDB](http://circadb.hogeneschlab.org/) ·
+[GEO Datasets](https://www.ncbi.nlm.nih.gov/geo/) ·
+[UniProt](https://www.uniprot.org/) ·
+[Gene Ontology](https://geneontology.org/) ·
+[HGNC](https://www.genenames.org/)
