@@ -1034,6 +1034,11 @@ def get_relevant_genes(raw_query: str, conn):
     concrete set of gene symbols to display — regardless of whether the
     query was typed as a gene symbol or a pathway/parameter keyword.
 
+    If the query is an EXACT gene symbol, resolution stops there — only
+    that gene's own data is returned, so a specific-gene search never
+    gets diluted with unrelated genes whose pathway text happens to
+    contain the same word.
+
     Returns:
         matched_genes (set[str]):      every gene symbol considered in-scope for this query
         matched_parameters (dict):     PARAMETER_LIBRARY entries whose pathway/name/keyword matched
@@ -1048,6 +1053,8 @@ def get_relevant_genes(raw_query: str, conn):
     if not q:
         return matched_genes, matched_parameters, db_pathway_hit
 
+    exact_match_found = False
+
     # (a) Exact gene symbol already curated in this database
     try:
         exists_df = pd.read_sql(
@@ -1056,6 +1063,7 @@ def get_relevant_genes(raw_query: str, conn):
         )
         if not exists_df.empty:
             matched_genes.add(symbol)
+            exact_match_found = True
     except Exception:
         pass
 
@@ -1064,6 +1072,13 @@ def get_relevant_genes(raw_query: str, conn):
     if pname_hit:
         matched_genes.add(symbol)
         matched_parameters[pname_hit] = PARAMETER_LIBRARY[pname_hit]
+        exact_match_found = True
+
+    # If the query is an exact gene symbol, stop here — show ONLY this
+    # gene's own data, not every other gene whose pathway text happens
+    # to contain the same word.
+    if exact_match_found:
+        return matched_genes, matched_parameters, db_pathway_hit
 
     # (c) Query matches a defined pathway/parameter name or keyword —
     #     pull in every gene belonging to that pathway
@@ -1234,6 +1249,21 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
         fig.update_yaxes(title_text="Fold Change (relative to baseline)")
         fig.update_xaxes(title_text="Season")
         st.plotly_chart(fig, use_container_width=True, key=f"chart_{symbol}")
+
+        # ── Venn diagram: up/down-regulated vs statistically significant seasons ──
+        up_seasons = set(df.loc[df['fold_change'] > 1, 'season'])
+        down_seasons = set(df.loc[df['fold_change'] < 1, 'season'])
+        sig_seasons = set(df.loc[pd.to_numeric(df['p_value'], errors='coerce') < 0.05, 'season'])
+        if up_seasons or down_seasons or sig_seasons:
+            st.markdown('<div class="section-header">Venn Diagram — Regulation vs Significance by Season</div>', unsafe_allow_html=True)
+            st.caption(f"How {symbol}'s seasons split across up-regulated, down-regulated, "
+                       "and statistically significant (p < 0.05) fold-change values.")
+            venn_fig = render_venn({
+                "Up-regulated": up_seasons,
+                "Down-regulated": down_seasons,
+                "Significant (p<0.05)": sig_seasons
+            })
+            st.plotly_chart(venn_fig, use_container_width=True, key=f"venn_{symbol}")
 
         st.markdown('<div class="section-header">Evidence Grading (per row)</div>', unsafe_allow_html=True)
         for _, r in df.iterrows():
