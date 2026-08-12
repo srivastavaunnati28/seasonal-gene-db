@@ -24,82 +24,75 @@ st.markdown("""
 
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
+    /* Light scientific background: soft teal/cream gradient + faint
+       repeating dot-grid (microarray/heatmap motif) and a faint wavy
+       double-helix line (transcriptome motif) tiled across the page. */
     .stApp {
-        background: radial-gradient(ellipse 1200px 800px at 15% -10%, #123449 0%, transparent 55%),
-                    linear-gradient(180deg, #081522 0%, #0a1c2c 45%, #0c2233 100%);
+        background-color: #f3f9f8;
+        background-image:
+            radial-gradient(circle, rgba(15,140,130,0.10) 1.4px, transparent 1.4px),
+            repeating-linear-gradient(115deg, rgba(15,140,130,0.05) 0px, rgba(15,140,130,0.05) 1.5px, transparent 1.5px, transparent 26px),
+            linear-gradient(160deg, #f6fbfa 0%, #eef7f5 45%, #e9f4f0 100%);
+        background-size: 22px 22px, 220px 220px, cover;
+        background-attachment: fixed;
     }
 
     /* Journal-style top utility strip */
     .ncbi-topstrip {
-        background: #050d16;
-        color: #7fa8b8;
+        background: #0c3b3f;
+        color: #cdeae6;
         font-size: 12px;
         padding: 6px 16px;
         margin: -1rem -1rem 0 -1rem;
         letter-spacing: .4px;
-        border-bottom: 1px solid rgba(34,211,200,0.2);
     }
 
-    /* Masthead hero banner — dark navy with glowing double-helix motif */
+    /* Masthead hero banner — light card with a seasonality/transcriptome
+       SVG illustration on the right (original artwork, not copied). */
     .main-header {
         position: relative;
-        background:
-            radial-gradient(circle at 88% 20%, rgba(232,185,58,0.16) 0%, transparent 45%),
-            radial-gradient(circle at 8% 85%, rgba(34,211,200,0.18) 0%, transparent 50%),
-            linear-gradient(120deg, #06121d 0%, #0b2436 55%, #0e2f45 100%);
-        border: 1px solid rgba(34,211,200,0.25);
-        border-radius: 10px;
-        padding: 34px 32px;
+        background: linear-gradient(120deg, #ffffff 0%, #eaf6f4 60%, #e2f2ee 100%);
+        border: 1px solid #bfe3dc;
+        border-radius: 12px;
+        padding: 28px 32px;
         margin: 10px 0 18px 0;
         overflow: hidden;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+        box-shadow: 0 6px 24px rgba(15,60,60,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
     }
-    .main-header::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        background-image: repeating-linear-gradient(
-            100deg,
-            transparent 0px, transparent 38px,
-            rgba(34,211,200,0.07) 38px, rgba(34,211,200,0.07) 40px
-        );
-        pointer-events: none;
-    }
+    .main-header-text { position: relative; z-index: 1; max-width: 620px; }
+    .main-header-art { flex-shrink: 0; opacity: 0.92; }
     .main-title {
-        position: relative;
         font-family: 'Space Grotesk', sans-serif;
-        font-size: 34px;
+        font-size: 32px;
         font-weight: 800;
-        letter-spacing: .3px;
+        letter-spacing: .2px;
         margin: 0;
-        background: linear-gradient(90deg, #ffffff 0%, #6fe4da 65%, #22d3c8 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        color: #0b3d3f;
     }
     .main-subtitle {
-        position: relative;
         font-size: 14.5px;
-        color: #a9c6ce;
+        color: #34605e;
         margin-top: 8px;
-        max-width: 720px;
         line-height: 1.55;
     }
     .affil {
         font-size: 13px;
-        color: #7fa8b8;
+        color: #4a7a76;
         font-style: italic;
     }
 
-    /* Section headers — teal-on-navy with gold rule, journal-nav feel */
+    /* Section headers — teal-on-cream with gold rule */
     .section-header {
         font-family: 'Space Grotesk', sans-serif;
-        font-size: 17px;
         font-weight: 700;
         letter-spacing: .3px;
-        color: #eaf3f5;
-        background: linear-gradient(90deg, #0e2a3d 0%, #123a4f 100%);
-        border-left: 4px solid #e8b93a;
+        color: #ffffff;
+        background: linear-gradient(90deg, #0f8c82 0%, #12a396 100%);
+        border-left: 4px solid #d99a1f;
         padding: 9px 14px;
         margin: 22px 0 12px 0;
         border-radius: 4px;
@@ -107,85 +100,85 @@ st.markdown("""
         font-size: 13.5px;
     }
 
-    /* Result panel — glowing dark card */
+    /* Result panel — clean white card, teal top rule */
     .result-box {
-        background: linear-gradient(180deg, #0e2739 0%, #0a1c2a 100%);
-        border: 1px solid rgba(34,211,200,0.3);
-        border-top: 3px solid #22d3c8;
+        background: #ffffff;
+        border: 1px solid #cfe8e3;
+        border-top: 3px solid #12a396;
         border-radius: 8px;
         padding: 18px 22px;
         margin-bottom: 16px;
-        box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+        box-shadow: 0 2px 10px rgba(15,60,60,0.06);
     }
     .gene-name {
         font-family: 'Space Grotesk', sans-serif;
         font-size: 26px;
         font-weight: 800;
-        color: #6fe4da;
-        letter-spacing: .5px;
+        color: #0b3d3f;
+        letter-spacing: .3px;
     }
     .gene-meta {
         font-size: 13.5px;
-        color: #a9c6ce;
+        color: #3f6b67;
         margin-top: 4px;
     }
 
-    /* Photoperiod comparison cards — recolored to navy/teal/gold trio */
+    /* Photoperiod comparison cards — teal / gold / green trio on light bg */
     .photo-card {
         border-radius: 8px;
         padding: 14px;
-        border: 1px solid rgba(34,211,200,0.2);
+        border: 1px solid #d7e9e5;
         height: 100%;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        box-shadow: 0 1px 4px rgba(15,60,60,0.06);
     }
-    .photo-card-sd { background: #0d2438; border-top: 4px solid #22d3c8; }
-    .photo-card-ld { background: #2b2410; border-top: 4px solid #e8b93a; }
-    .photo-card-season { background: #10261d; border-top: 4px solid #35b57a; }
+    .photo-card-sd { background: #e6f5f3; border-top: 4px solid #12a396; }
+    .photo-card-ld { background: #fbf1dc; border-top: 4px solid #d99a1f; }
+    .photo-card-season { background: #e9f6ec; border-top: 4px solid #2f9e5e; }
 
     .photo-label {
         font-weight: 700;
         font-size: 14.5px;
-        color: #eaf3f5;
+        color: #123c3a;
         margin-bottom: 6px;
     }
     .photo-value {
         font-size: 13px;
-        color: #c3dade;
+        color: #2c4f4c;
         line-height: 1.55;
     }
 
     /* Source badges */
     .source-tag {
         display: inline-block;
-        background: #0e2739;
-        border: 1px solid rgba(34,211,200,0.35);
+        background: #eaf6f4;
+        border: 1px solid #b9dcd5;
         border-radius: 4px;
         padding: 3px 10px;
         margin: 2px 4px 2px 0;
         font-size: 12px;
-        color: #6fe4da;
+        color: #0f5c56;
         font-weight: 700;
     }
-    .source-tag-db { background: #10261d; border-color: #35b57a; color: #6fe3a8; }
-    .source-tag-ncbi { background: #0e2739; border-color: #22d3c8; color: #6fe4da; }
-    .source-tag-go { background: #2b2410; border-color: #e8b93a; color: #f0d27a; }
-    .source-tag-seed { background: #241536; border-color: #8a5fc9; color: #c9a8f0; }
+    .source-tag-db { background: #e9f6ec; border-color: #9fd6b5; color: #1f7a45; }
+    .source-tag-ncbi { background: #e6f5f3; border-color: #9edac9; color: #0f8c82; }
+    .source-tag-go { background: #fbf1dc; border-color: #e6c98f; color: #9c6f17; }
+    .source-tag-seed { background: #f1e9fb; border-color: #cfa9e8; color: #6a1a9c; }
 
     /* Live cross-reference panel */
     .xref-box {
-        background: #0a1c2a;
-        border: 1px solid rgba(34,211,200,0.2);
-        border-left: 4px solid #22d3c8;
+        background: #f7fcfb;
+        border: 1px solid #cfe8e3;
+        border-left: 4px solid #12a396;
         border-radius: 6px;
         padding: 14px 16px;
         margin: 10px 0 16px 0;
         font-size: 13px;
-        color: #c3dade;
+        color: #24443f;
         line-height: 1.6;
     }
     .xref-label {
         font-weight: 700;
-        color: #6fe4da;
+        color: #0f8c82;
         font-size: 13px;
     }
     .evidence-badge {
@@ -196,55 +189,58 @@ st.markdown("""
         font-weight: 800;
         margin-left: 8px;
     }
-    .evidence-single { background: #2b2410; color: #f0d27a; border: 1px solid #e8b93a; }
-    .evidence-replicated { background: #10261d; color: #6fe3a8; border: 1px solid #35b57a; }
+    .evidence-single { background: #fbf1dc; color: #9c6f17; border: 1px solid #e6c98f; }
+    .evidence-replicated { background: #e9f6ec; color: #1f7a45; border: 1px solid #9fd6b5; }
 
-    /* Tabs — teal underline on dark */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        border-bottom: 2px solid rgba(34,211,200,0.25);
+        border-bottom: 2px solid #cfe8e3;
         gap: 4px;
     }
     .stTabs [data-baseweb="tab"] {
-        color: #a9c6ce;
+        color: #2c4f4c;
         font-weight: 700;
-        background: #0e2739;
+        background: #e6f5f3;
         border-radius: 6px 6px 0 0;
         padding: 8px 14px;
     }
     .stTabs [aria-selected="true"] {
-        color: #06121d !important;
-        background: #22d3c8 !important;
-        border-bottom: 2px solid #e8b93a !important;
+        color: #ffffff !important;
+        background: #0f8c82 !important;
+        border-bottom: 2px solid #d99a1f !important;
     }
 
     [data-testid="stDataFrame"] {
-        border: 1px solid rgba(34,211,200,0.25);
+        border: 1px solid #cfe8e3;
         border-radius: 8px;
         overflow: hidden;
     }
 
-    /* Buttons — teal with gold hover, journal CTA feel */
+    /* Buttons */
     .stButton>button, .stDownloadButton>button, .stFormSubmitButton>button {
-        background: #22d3c8 !important;
-        color: #06121d !important;
+        background: #0f8c82 !important;
+        color: #ffffff !important;
         border: none !important;
         border-radius: 5px !important;
         font-weight: 700 !important;
     }
     .stButton>button:hover, .stDownloadButton>button:hover, .stFormSubmitButton>button:hover {
-        background: #e8b93a !important;
-        color: #06121d !important;
+        background: #d99a1f !important;
+        color: #1a1a1a !important;
     }
 
     /* Sidebar */
     section[data-testid="stSidebar"] {
-        background: #050d16;
-        border-right: 2px solid rgba(34,211,200,0.25);
+        background: #eaf6f4;
+        border-right: 2px solid #bfe3dc;
     }
 
-    /* General text color fix for dark background */
-    .stMarkdown, .stCaption, p, span, label, .stExpander { color: #c3dade; }
-    h1, h2, h3, h4 { color: #eaf3f5; font-family: 'Space Grotesk', sans-serif; }
+    h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; color: #123c3a; }
+
+    @media (max-width: 900px) {
+        .main-header { flex-direction: column; align-items: flex-start; }
+        .main-header-art { display: none; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -873,7 +869,7 @@ def render_venn(sets_dict: dict):
         fig.add_annotation(x=0, y=0.1, text=f"<b>{abc}</b>", showarrow=False, font=dict(size=14, color="#1a1a1a"))
 
     fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10),
-                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
+                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#123c3a')
     return fig
 
 
@@ -925,9 +921,63 @@ with st.sidebar:
 # ════════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="main-header">
-    <p class="main-title">🧬 SEASONAL PHYSIOLOGY GENE DATABASE</p>
-    <p class="main-subtitle">A photoperiod- and season-linked gene expression resource, cross-referenced live with NCBI, CircaDB, PubMed, GEO Datasets, UniProt, and Gene Ontology.</p>
-    <p class="affil">Photoperiod &amp; Melatonin · Circadian Clock Core · Seasonal Reproduction · Thyroid-Hormone Switch</p>
+    <div class="main-header-text">
+        <p class="main-title">🧬 SEASONAL PHYSIOLOGY GENE DATABASE</p>
+        <p class="main-subtitle">A photoperiod- and season-linked gene expression resource, cross-referenced live with NCBI, CircaDB, PubMed, GEO Datasets, UniProt, and Gene Ontology.</p>
+        <p class="affil">Photoperiod &amp; Melatonin · Circadian Clock Core · Seasonal Reproduction · Thyroid-Hormone Switch</p>
+    </div>
+    <div class="main-header-art">
+        <svg width="230" height="170" viewBox="0 0 230 170" xmlns="http://www.w3.org/2000/svg">
+            <!-- Transcriptome motif: double-helix with expression 'rungs' -->
+            <path d="M 20 20 C 45 45, 45 65, 20 85 C -5 105, -5 125, 20 150"
+                  fill="none" stroke="#12a396" stroke-width="2.5" opacity="0.85"/>
+            <path d="M 55 20 C 30 45, 30 65, 55 85 C 80 105, 80 125, 55 150"
+                  fill="none" stroke="#d99a1f" stroke-width="2.5" opacity="0.85"/>
+            <line x1="22" y1="30" x2="53" y2="30" stroke="#7fb8b0" stroke-width="1.6"/>
+            <line x1="16" y1="50" x2="59" y2="50" stroke="#7fb8b0" stroke-width="1.6"/>
+            <line x1="20" y1="70" x2="55" y2="70" stroke="#7fb8b0" stroke-width="1.6"/>
+            <line x1="16" y1="90" x2="59" y2="90" stroke="#7fb8b0" stroke-width="1.6"/>
+            <line x1="20" y1="110" x2="55" y2="110" stroke="#7fb8b0" stroke-width="1.6"/>
+            <line x1="16" y1="130" x2="59" y2="130" stroke="#7fb8b0" stroke-width="1.6"/>
+
+            <!-- small expression-level bars (transcriptome readout) -->
+            <rect x="80" y="118" width="7" height="18" fill="#12a396" opacity="0.75"/>
+            <rect x="91" y="105" width="7" height="31" fill="#d99a1f" opacity="0.75"/>
+            <rect x="102" y="95" width="7" height="41" fill="#2f9e5e" opacity="0.75"/>
+            <rect x="113" y="112" width="7" height="24" fill="#12a396" opacity="0.75"/>
+
+            <!-- Seasonality icons -->
+            <!-- Sun (summer) -->
+            <g transform="translate(175,35)" stroke="#d99a1f" stroke-width="2" fill="none" opacity="0.9">
+                <circle r="10" fill="#fbf1dc" stroke="#d99a1f"/>
+                <line x1="0" y1="-16" x2="0" y2="-20"/>
+                <line x1="0" y1="16" x2="0" y2="20"/>
+                <line x1="-16" y1="0" x2="-20" y2="0"/>
+                <line x1="16" y1="0" x2="20" y2="0"/>
+                <line x1="-11" y1="-11" x2="-14" y2="-14"/>
+                <line x1="11" y1="11" x2="14" y2="14"/>
+                <line x1="-11" y1="11" x2="-14" y2="14"/>
+                <line x1="11" y1="-11" x2="14" y2="-14"/>
+            </g>
+            <!-- Snowflake (winter) -->
+            <g transform="translate(205,80)" stroke="#12a396" stroke-width="1.8" opacity="0.9">
+                <line x1="0" y1="-13" x2="0" y2="13"/>
+                <line x1="-11.3" y1="-6.5" x2="11.3" y2="6.5"/>
+                <line x1="-11.3" y1="6.5" x2="11.3" y2="-6.5"/>
+            </g>
+            <!-- Leaf (autumn) -->
+            <g transform="translate(150,80)" opacity="0.9">
+                <path d="M 0 12 C -8 2, -8 -10, 0 -14 C 8 -10, 8 2, 0 12 Z" fill="#e0685a" stroke="#c94f42" stroke-width="1"/>
+                <line x1="0" y1="12" x2="0" y2="-10" stroke="#c94f42" stroke-width="1"/>
+            </g>
+            <!-- Sprout (spring) -->
+            <g transform="translate(180,125)" opacity="0.9">
+                <path d="M 0 15 C 0 0, -10 -5, -12 -14 C -3 -12, 0 -2, 0 8" fill="#2f9e5e"/>
+                <path d="M 0 15 C 0 2, 9 -3, 11 -11 C 3 -9, 0 0, 0 8" fill="#5cbd7f"/>
+                <line x1="0" y1="15" x2="0" y2="20" stroke="#2f9e5e" stroke-width="2"/>
+            </g>
+        </svg>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1214,7 +1264,7 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
                      color_discrete_map={'Winter': '#1f5fa8', 'Spring': '#1f9d55',
                                           'Summer': '#e8820c', 'Autumn': '#b0453f'},
                      title=f"{symbol} — Fold Change by Season")
-        fig.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
+        fig.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#123c3a')
         fig.update_yaxes(title_text="Fold Change (relative to baseline)")
         fig.update_xaxes(title_text="Season")
         st.plotly_chart(fig, use_container_width=True, key=f"chart_{symbol}")
@@ -1419,7 +1469,7 @@ with tab_search:
                             labels={'gene_symbol': 'Gene', 'fold_change': 'Fold Change',
                                     'photoperiod_condition': 'Photoperiod'}
                         )
-                        fig_photo.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
+                        fig_photo.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#123c3a')
                         st.plotly_chart(fig_photo, use_container_width=True, key="photoperiod_comparison")
                     else:
                         st.caption("No SD/LD-labeled data yet for the matched gene(s) — this chart needs at least one curated row tagged SD or LD.")
@@ -1436,7 +1486,7 @@ with tab_search:
                             labels={'season': 'Season', 'fold_change': 'Avg. Fold Change'}
                         )
                         fig_trend.update_traces(line_color='#22d3c8', marker=dict(size=10, color='#e8b93a'))
-                        fig_trend.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
+                        fig_trend.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#123c3a')
                         st.plotly_chart(fig_trend, use_container_width=True, key="season_trend")
 
                     pivot = visual_df.pivot_table(index='gene_symbol', columns='season',
@@ -1448,7 +1498,7 @@ with tab_search:
                         labels=dict(x="Season", y="Gene", color="Fold Change"),
                         title="Fold Change Heatmap — Gene × Season"
                     )
-                    fig_heat.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
+                    fig_heat.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#123c3a')
                     st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_genes")
                 else:
                     st.caption("No curated fold-change data yet for the matched gene(s) — these charts need at least one curated database row with a numeric fold-change value.")
@@ -1502,7 +1552,7 @@ with tab_compare:
                     title="Fold Change by Season — Selected Genes",
                     labels={'gene_symbol': 'Gene', 'season': 'Season', 'fold_change': 'Fold Change'}
                 )
-                fig_cmp.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
+                fig_cmp.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#123c3a')
                 st.plotly_chart(fig_cmp, use_container_width=True)
 
                 st.markdown('<div class="section-header">Comparison Table</div>', unsafe_allow_html=True)
