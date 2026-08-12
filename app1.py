@@ -249,14 +249,18 @@ st.markdown('<div class="ncbi-topstrip">🧬 PHYSIOLOGICAL RESEARCH RESOURCE &nb
 # ════════════════════════════════════════════════════════════════
 # SEO / DISCOVERABILITY METADATA
 # Streamlit apps render client-side, so search-engine crawlers get
-# limited value from this — but it still helps: (a) link previews on
-# Slack/Twitter/WhatsApp/LinkedIn use the Open Graph tags below, and
-# (b) crawlers that do execute JS (Googlebot increasingly does) will
-# find the meta description/keywords and the Schema.org JSON-LD,
-# which explicitly tells Google "this is a scientific Dataset", the
-# same structured-data pattern Google Dataset Search relies on.
-# For full indexing, pair this with a static landing page (GitHub
-# Pages/README) that links here — see the Methodology tab notes.
+# limited value from this — but the meta tags below still help with
+# link previews on Slack/Twitter/WhatsApp/LinkedIn.
+#
+# NOTE: A <script type="application/ld+json"> block (for Schema.org
+# structured data) was tried here previously and caused a hard crash
+# ("TypeError: First argument must be a String, HTMLElement,
+# HTMLCollection, or NodeList") — Streamlit's markdown renderer does
+# not safely support <script> tags injected via unsafe_allow_html, so
+# that approach is intentionally NOT used. If you want Schema.org
+# JSON-LD for Google Dataset Search, add it via a separate static
+# landing page (e.g. GitHub Pages) that links to this app, not inside
+# the Streamlit app itself.
 # ════════════════════════════════════════════════════════════════
 st.markdown("""
 <meta name="description" content="Seasonal Physiology Gene Database — a curated, HGNC-validated, statistically-graded research resource on photoperiod, melatonin, circadian clock, seasonal reproduction, and thyroid-switch genes, cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt, and Gene Ontology.">
@@ -268,26 +272,6 @@ st.markdown("""
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Seasonal Physiology Gene Database">
 <meta name="twitter:description" content="Curated, HGNC-validated database of photoperiod/seasonal-physiology genes, cross-referenced live with NCBI, PubMed & Gene Ontology.">
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Dataset",
-  "name": "Seasonal Physiology Gene Database",
-  "description": "A curated, HGNC-validated, statistically-graded database of genes involved in photoperiod perception, melatonin signaling, the circadian clock, seasonal reproduction, and the thyroid-hormone seasonal switch, cross-referenced live with NCBI Gene, PubMed, CircaDB, GEO, UniProt, and Gene Ontology.",
-  "url": "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
-  "keywords": ["photoperiod", "melatonin", "circadian rhythm", "seasonal gene expression", "chronobiology", "gene database"],
-  "creator": {
-    "@type": "Person",
-    "name": "S. Unnati"
-  },
-  "license": "https://creativecommons.org/licenses/by/4.0/",
-  "isAccessibleForFree": true,
-  "audience": {
-    "@type": "Audience",
-    "audienceType": "Students and Researchers"
-  }
-}
-</script>
 """, unsafe_allow_html=True)
 
 
