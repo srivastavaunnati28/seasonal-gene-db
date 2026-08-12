@@ -20,133 +20,172 @@ st.set_page_config(
 # ════════════════════════════════════════════════════════════════
 st.markdown("""
 <style>
-    .stApp { background-color: #f5f8fb; }
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=Inter:wght@400;500;600;700&display=swap');
 
-    /* NCBI-style top utility strip */
-    .ncbi-topstrip {
-        background: #205493;
-        color: #ffffff;
-        font-size: 12px;
-        padding: 5px 16px;
-        margin: -1rem -1rem 0 -1rem;
-        letter-spacing: .3px;
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
+
+    .stApp {
+        background: radial-gradient(ellipse 1200px 800px at 15% -10%, #123449 0%, transparent 55%),
+                    linear-gradient(180deg, #081522 0%, #0a1c2c 45%, #0c2233 100%);
     }
 
-    /* NCBI-style blue gradient banner */
+    /* Journal-style top utility strip */
+    .ncbi-topstrip {
+        background: #050d16;
+        color: #7fa8b8;
+        font-size: 12px;
+        padding: 6px 16px;
+        margin: -1rem -1rem 0 -1rem;
+        letter-spacing: .4px;
+        border-bottom: 1px solid rgba(34,211,200,0.2);
+    }
+
+    /* Masthead hero banner — dark navy with glowing double-helix motif */
     .main-header {
-        background: linear-gradient(90deg, #1a3a5c 0%, #2c6fad 55%, #3a8fc2 100%);
-        border-radius: 8px;
-        padding: 22px 26px;
+        position: relative;
+        background:
+            radial-gradient(circle at 88% 20%, rgba(232,185,58,0.16) 0%, transparent 45%),
+            radial-gradient(circle at 8% 85%, rgba(34,211,200,0.18) 0%, transparent 50%),
+            linear-gradient(120deg, #06121d 0%, #0b2436 55%, #0e2f45 100%);
+        border: 1px solid rgba(34,211,200,0.25);
+        border-radius: 10px;
+        padding: 34px 32px;
         margin: 10px 0 18px 0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+    .main-header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: repeating-linear-gradient(
+            100deg,
+            transparent 0px, transparent 38px,
+            rgba(34,211,200,0.07) 38px, rgba(34,211,200,0.07) 40px
+        );
+        pointer-events: none;
     }
     .main-title {
-        font-size: 30px;
+        position: relative;
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 34px;
         font-weight: 800;
-        color: #ffffff;
+        letter-spacing: .3px;
         margin: 0;
+        background: linear-gradient(90deg, #ffffff 0%, #6fe4da 65%, #22d3c8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     .main-subtitle {
+        position: relative;
         font-size: 14.5px;
-        color: #e3edf7;
-        margin-top: 6px;
+        color: #a9c6ce;
+        margin-top: 8px;
+        max-width: 720px;
+        line-height: 1.55;
     }
     .affil {
         font-size: 13px;
-        color: #cfe0f0;
+        color: #7fa8b8;
         font-style: italic;
     }
 
-    /* Section headers - NCBI teal/orange accent style, rotating colors */
+    /* Section headers — teal-on-navy with gold rule, journal-nav feel */
     .section-header {
-        font-size: 18px;
-        font-weight: 800;
-        color: #ffffff;
-        background: #2c6fad;
-        border-left: 6px solid #ff8c1a;
-        padding: 8px 14px;
-        margin: 20px 0 12px 0;
+        font-family: 'Space Grotesk', sans-serif;
+        font-size: 17px;
+        font-weight: 700;
+        letter-spacing: .3px;
+        color: #eaf3f5;
+        background: linear-gradient(90deg, #0e2a3d 0%, #123a4f 100%);
+        border-left: 4px solid #e8b93a;
+        padding: 9px 14px;
+        margin: 22px 0 12px 0;
         border-radius: 4px;
+        text-transform: uppercase;
+        font-size: 13.5px;
     }
 
-    /* Result panel - NCBI record card look */
+    /* Result panel — glowing dark card */
     .result-box {
-        background: linear-gradient(180deg, #eaf3fc 0%, #ffffff 100%);
-        border: 1px solid #a9c9e8;
-        border-top: 5px solid #205493;
+        background: linear-gradient(180deg, #0e2739 0%, #0a1c2a 100%);
+        border: 1px solid rgba(34,211,200,0.3);
+        border-top: 3px solid #22d3c8;
         border-radius: 8px;
         padding: 18px 22px;
         margin-bottom: 16px;
-        box-shadow: 0 1px 4px rgba(32,84,147,0.12);
+        box-shadow: 0 4px 18px rgba(0,0,0,0.35);
     }
     .gene-name {
+        font-family: 'Space Grotesk', sans-serif;
         font-size: 26px;
-        font-weight: 900;
-        color: #0b3d61;
+        font-weight: 800;
+        color: #6fe4da;
         letter-spacing: .5px;
     }
     .gene-meta {
         font-size: 13.5px;
-        color: #35526e;
+        color: #a9c6ce;
         margin-top: 4px;
     }
 
-    /* Photoperiod comparison cards - bright NCBI-esque trio */
+    /* Photoperiod comparison cards — recolored to navy/teal/gold trio */
     .photo-card {
         border-radius: 8px;
         padding: 14px;
-        border: 1px solid #d0d7de;
+        border: 1px solid rgba(34,211,200,0.2);
         height: 100%;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
-    .photo-card-sd { background: #e3edfb; border-top: 5px solid #1f5fa8; }
-    .photo-card-ld { background: #fff2df; border-top: 5px solid #e8820c; }
-    .photo-card-season { background: #e4f7ea; border-top: 5px solid #1f9d55; }
+    .photo-card-sd { background: #0d2438; border-top: 4px solid #22d3c8; }
+    .photo-card-ld { background: #2b2410; border-top: 4px solid #e8b93a; }
+    .photo-card-season { background: #10261d; border-top: 4px solid #35b57a; }
 
     .photo-label {
-        font-weight: 800;
+        font-weight: 700;
         font-size: 14.5px;
-        color: #1a1a1a;
+        color: #eaf3f5;
         margin-bottom: 6px;
     }
     .photo-value {
         font-size: 13px;
-        color: #2b2b2b;
+        color: #c3dade;
         line-height: 1.55;
     }
 
-    /* Source badges - colorful NCBI database chips */
+    /* Source badges */
     .source-tag {
         display: inline-block;
-        background: #eef3fb;
-        border: 1px solid #b9cce4;
+        background: #0e2739;
+        border: 1px solid rgba(34,211,200,0.35);
         border-radius: 4px;
         padding: 3px 10px;
         margin: 2px 4px 2px 0;
         font-size: 12px;
-        color: #1a5276;
+        color: #6fe4da;
         font-weight: 700;
     }
-    .source-tag-db { background: #e4f7ea; border-color: #9edab3; color: #157a3d; }
-    .source-tag-ncbi { background: #eaf3fc; border-color: #a9c9e8; color: #205493; }
-    .source-tag-go { background: #fdf0e3; border-color: #e6c393; color: #9c5a17; }
-    .source-tag-seed { background: #f3e8fd; border-color: #cfa9e8; color: #6a1a9c; }
+    .source-tag-db { background: #10261d; border-color: #35b57a; color: #6fe3a8; }
+    .source-tag-ncbi { background: #0e2739; border-color: #22d3c8; color: #6fe4da; }
+    .source-tag-go { background: #2b2410; border-color: #e8b93a; color: #f0d27a; }
+    .source-tag-seed { background: #241536; border-color: #8a5fc9; color: #c9a8f0; }
 
     /* Live cross-reference panel */
     .xref-box {
-        background: #ffffff;
-        border: 1px solid #cfe0f0;
-        border-left: 5px solid #205493;
+        background: #0a1c2a;
+        border: 1px solid rgba(34,211,200,0.2);
+        border-left: 4px solid #22d3c8;
         border-radius: 6px;
         padding: 14px 16px;
         margin: 10px 0 16px 0;
         font-size: 13px;
-        color: #263a4d;
+        color: #c3dade;
         line-height: 1.6;
     }
     .xref-label {
-        font-weight: 800;
-        color: #205493;
+        font-weight: 700;
+        color: #6fe4da;
         font-size: 13px;
     }
     .evidence-badge {
@@ -157,55 +196,103 @@ st.markdown("""
         font-weight: 800;
         margin-left: 8px;
     }
-    .evidence-single { background: #fdf0e3; color: #9c5a17; border: 1px solid #e6c393; }
-    .evidence-replicated { background: #e0f5e6; color: #157a3d; border: 1px solid #9edab3; }
+    .evidence-single { background: #2b2410; color: #f0d27a; border: 1px solid #e8b93a; }
+    .evidence-replicated { background: #10261d; color: #6fe3a8; border: 1px solid #35b57a; }
 
-    /* Tabs - NCBI blue underline style */
+    /* Tabs — teal underline on dark */
     .stTabs [data-baseweb="tab-list"] {
-        border-bottom: 3px solid #cfe0f0;
+        border-bottom: 2px solid rgba(34,211,200,0.25);
         gap: 4px;
     }
     .stTabs [data-baseweb="tab"] {
-        color: #35526e;
+        color: #a9c6ce;
         font-weight: 700;
-        background: #eaf3fc;
+        background: #0e2739;
         border-radius: 6px 6px 0 0;
         padding: 8px 14px;
     }
     .stTabs [aria-selected="true"] {
-        color: #ffffff !important;
-        background: #205493 !important;
-        border-bottom: 3px solid #ff8c1a !important;
+        color: #06121d !important;
+        background: #22d3c8 !important;
+        border-bottom: 2px solid #e8b93a !important;
     }
 
     [data-testid="stDataFrame"] {
-        border: 1px solid #a9c9e8;
+        border: 1px solid rgba(34,211,200,0.25);
         border-radius: 8px;
         overflow: hidden;
     }
 
-    /* Buttons - NCBI orange accent */
+    /* Buttons — teal with gold hover, journal CTA feel */
     .stButton>button, .stDownloadButton>button, .stFormSubmitButton>button {
-        background: #205493 !important;
-        color: #ffffff !important;
+        background: #22d3c8 !important;
+        color: #06121d !important;
         border: none !important;
         border-radius: 5px !important;
         font-weight: 700 !important;
     }
     .stButton>button:hover, .stDownloadButton>button:hover, .stFormSubmitButton>button:hover {
-        background: #ff8c1a !important;
-        color: #1a1a1a !important;
+        background: #e8b93a !important;
+        color: #06121d !important;
     }
 
     /* Sidebar */
     section[data-testid="stSidebar"] {
-        background: #eef3fb;
-        border-right: 3px solid #205493;
+        background: #050d16;
+        border-right: 2px solid rgba(34,211,200,0.25);
     }
+
+    /* General text color fix for dark background */
+    .stMarkdown, .stCaption, p, span, label, .stExpander { color: #c3dade; }
+    h1, h2, h3, h4 { color: #eaf3f5; font-family: 'Space Grotesk', sans-serif; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="ncbi-topstrip">🧬 National-style research resource · cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt &amp; Gene Ontology</div>', unsafe_allow_html=True)
+st.markdown('<div class="ncbi-topstrip">🧬 PHYSIOLOGICAL RESEARCH RESOURCE &nbsp;·&nbsp; cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt &amp; Gene Ontology</div>', unsafe_allow_html=True)
+
+# ════════════════════════════════════════════════════════════════
+# SEO / DISCOVERABILITY METADATA
+# Streamlit apps render client-side, so search-engine crawlers get
+# limited value from this — but it still helps: (a) link previews on
+# Slack/Twitter/WhatsApp/LinkedIn use the Open Graph tags below, and
+# (b) crawlers that do execute JS (Googlebot increasingly does) will
+# find the meta description/keywords and the Schema.org JSON-LD,
+# which explicitly tells Google "this is a scientific Dataset", the
+# same structured-data pattern Google Dataset Search relies on.
+# For full indexing, pair this with a static landing page (GitHub
+# Pages/README) that links here — see the Methodology tab notes.
+# ════════════════════════════════════════════════════════════════
+st.markdown("""
+<meta name="description" content="Seasonal Physiology Gene Database — a curated, HGNC-validated, statistically-graded research resource on photoperiod, melatonin, circadian clock, seasonal reproduction, and thyroid-switch genes, cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt, and Gene Ontology.">
+<meta name="keywords" content="photoperiod, melatonin, circadian rhythm, seasonal gene expression, short day long day, pars tuberalis, TSH, deiodinase, gene database, chronobiology, seasonal reproduction, kisspeptin, clock genes, bioinformatics database, NCBI, gene ontology">
+<meta property="og:title" content="Seasonal Physiology Gene Database">
+<meta property="og:description" content="A photoperiod- and season-linked gene expression research database, cross-referenced with NCBI, PubMed, CircaDB, GEO, UniProt, and Gene Ontology.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Seasonal Physiology Gene Database">
+<meta name="twitter:description" content="Curated, HGNC-validated database of photoperiod/seasonal-physiology genes, cross-referenced live with NCBI, PubMed & Gene Ontology.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "Seasonal Physiology Gene Database",
+  "description": "A curated, HGNC-validated, statistically-graded database of genes involved in photoperiod perception, melatonin signaling, the circadian clock, seasonal reproduction, and the thyroid-hormone seasonal switch, cross-referenced live with NCBI Gene, PubMed, CircaDB, GEO, UniProt, and Gene Ontology.",
+  "url": "https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/",
+  "keywords": ["photoperiod", "melatonin", "circadian rhythm", "seasonal gene expression", "chronobiology", "gene database"],
+  "creator": {
+    "@type": "Person",
+    "name": "S. Unnati"
+  },
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "isAccessibleForFree": true,
+  "audience": {
+    "@type": "Audience",
+    "audienceType": "Students and Researchers"
+  }
+}
+</script>
+""", unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -786,7 +873,7 @@ def render_venn(sets_dict: dict):
         fig.add_annotation(x=0, y=0.1, text=f"<b>{abc}</b>", showarrow=False, font=dict(size=14, color="#1a1a1a"))
 
     fig.update_layout(height=380, margin=dict(l=10, r=10, t=10, b=10),
-                       plot_bgcolor='white', paper_bgcolor='white')
+                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
     return fig
 
 
@@ -838,8 +925,9 @@ with st.sidebar:
 # ════════════════════════════════════════════════════════════════
 st.markdown("""
 <div class="main-header">
-    <p class="main-title">🧬 Seasonal Physiology Gene Database</p>
-    <p class="main-subtitle">A photoperiod- and season-linked gene expression resource, cross-referenced with NCBI, CircaDB, PubMed, GEO Datasets, UniProt, and Gene Ontology.</p>
+    <p class="main-title">🧬 SEASONAL PHYSIOLOGY GENE DATABASE</p>
+    <p class="main-subtitle">A photoperiod- and season-linked gene expression resource, cross-referenced live with NCBI, CircaDB, PubMed, GEO Datasets, UniProt, and Gene Ontology.</p>
+    <p class="affil">Photoperiod &amp; Melatonin · Circadian Clock Core · Seasonal Reproduction · Thyroid-Hormone Switch</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1126,7 +1214,7 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
                      color_discrete_map={'Winter': '#1f5fa8', 'Spring': '#1f9d55',
                                           'Summer': '#e8820c', 'Autumn': '#b0453f'},
                      title=f"{symbol} — Fold Change by Season")
-        fig.update_layout(showlegend=False, plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+        fig.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
         fig.update_yaxes(title_text="Fold Change (relative to baseline)")
         fig.update_xaxes(title_text="Season")
         st.plotly_chart(fig, use_container_width=True, key=f"chart_{symbol}")
@@ -1326,12 +1414,12 @@ with tab_search:
                         fig_photo = px.bar(
                             photo_summary, x='gene_symbol', y='fold_change',
                             color='photoperiod_condition', barmode='group',
-                            color_discrete_map={'SD': '#1f5fa8', 'LD': '#e8820c'},
+                            color_discrete_map={'SD': '#22d3c8', 'LD': '#e8b93a'},
                             title=f'❄️ Short-Day vs ☀️ Long-Day Fold Change — "{raw_query.strip()}"',
                             labels={'gene_symbol': 'Gene', 'fold_change': 'Fold Change',
                                     'photoperiod_condition': 'Photoperiod'}
                         )
-                        fig_photo.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                        fig_photo.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
                         st.plotly_chart(fig_photo, use_container_width=True, key="photoperiod_comparison")
                     else:
                         st.caption("No SD/LD-labeled data yet for the matched gene(s) — this chart needs at least one curated row tagged SD or LD.")
@@ -1347,8 +1435,8 @@ with tab_search:
                             title=f'Average Seasonal Fold-Change Trend — "{raw_query.strip()}"',
                             labels={'season': 'Season', 'fold_change': 'Avg. Fold Change'}
                         )
-                        fig_trend.update_traces(line_color='#205493', marker=dict(size=10, color='#ff8c1a'))
-                        fig_trend.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                        fig_trend.update_traces(line_color='#22d3c8', marker=dict(size=10, color='#e8b93a'))
+                        fig_trend.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
                         st.plotly_chart(fig_trend, use_container_width=True, key="season_trend")
 
                     pivot = visual_df.pivot_table(index='gene_symbol', columns='season',
@@ -1360,7 +1448,7 @@ with tab_search:
                         labels=dict(x="Season", y="Gene", color="Fold Change"),
                         title="Fold Change Heatmap — Gene × Season"
                     )
-                    fig_heat.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                    fig_heat.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
                     st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_genes")
                 else:
                     st.caption("No curated fold-change data yet for the matched gene(s) — these charts need at least one curated database row with a numeric fold-change value.")
@@ -1414,7 +1502,7 @@ with tab_compare:
                     title="Fold Change by Season — Selected Genes",
                     labels={'gene_symbol': 'Gene', 'season': 'Season', 'fold_change': 'Fold Change'}
                 )
-                fig_cmp.update_layout(plot_bgcolor='white', paper_bgcolor='white', font_color='#1a1a1a')
+                fig_cmp.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#c3dade')
                 st.plotly_chart(fig_cmp, use_container_width=True)
 
                 st.markdown('<div class="section-header">Comparison Table</div>', unsafe_allow_html=True)
