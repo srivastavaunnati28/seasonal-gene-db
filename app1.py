@@ -247,32 +247,25 @@ st.markdown("""
 st.markdown('<div class="ncbi-topstrip">🧬 PHYSIOLOGICAL RESEARCH RESOURCE &nbsp;·&nbsp; cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt &amp; Gene Ontology</div>', unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════
-# SEO / DISCOVERABILITY METADATA
-# Streamlit apps render client-side, so search-engine crawlers get
-# limited value from this — but the meta tags below still help with
-# link previews on Slack/Twitter/WhatsApp/LinkedIn.
+# SEO / DISCOVERABILITY METADATA — REMOVED
 #
-# NOTE: A <script type="application/ld+json"> block (for Schema.org
-# structured data) was tried here previously and caused a hard crash
-# ("TypeError: First argument must be a String, HTMLElement,
-# HTMLCollection, or NodeList") — Streamlit's markdown renderer does
-# not safely support <script> tags injected via unsafe_allow_html, so
-# that approach is intentionally NOT used. If you want Schema.org
-# JSON-LD for Google Dataset Search, add it via a separate static
-# landing page (e.g. GitHub Pages) that links to this app, not inside
-# the Streamlit app itself.
+# An earlier version injected <meta>/<script> tags here via
+# st.markdown(unsafe_allow_html=True) for SEO purposes (page
+# description, Open Graph tags, JSON-LD). This caused a hard crash:
+#   "TypeError: First argument must be a String, HTMLElement,
+#    HTMLCollection, or NodeList"
+# Streamlit's frontend does not reliably support injecting <meta>,
+# <link>, <title>, or <script> tags into the page this way — it can
+# attempt to relocate/process them and fail. This block is
+# intentionally left empty as a result.
+#
+# Safe alternative for SEO: create a separate static HTML "landing
+# page" (e.g. free on GitHub Pages) with proper <meta>/Open Graph/
+# JSON-LD tags in a real <head>, and link from that page to this
+# Streamlit app. That page will index normally; this Streamlit app
+# itself should only use st.set_page_config() for its title/icon,
+# which IS safely supported (see PAGE CONFIG section above).
 # ════════════════════════════════════════════════════════════════
-st.markdown("""
-<meta name="description" content="Seasonal Physiology Gene Database — a curated, HGNC-validated, statistically-graded research resource on photoperiod, melatonin, circadian clock, seasonal reproduction, and thyroid-switch genes, cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt, and Gene Ontology.">
-<meta name="keywords" content="photoperiod, melatonin, circadian rhythm, seasonal gene expression, short day long day, pars tuberalis, TSH, deiodinase, gene database, chronobiology, seasonal reproduction, kisspeptin, clock genes, bioinformatics database, NCBI, gene ontology">
-<meta property="og:title" content="Seasonal Physiology Gene Database">
-<meta property="og:description" content="A photoperiod- and season-linked gene expression research database, cross-referenced with NCBI, PubMed, CircaDB, GEO, UniProt, and Gene Ontology.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app/">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Seasonal Physiology Gene Database">
-<meta name="twitter:description" content="Curated, HGNC-validated database of photoperiod/seasonal-physiology genes, cross-referenced live with NCBI, PubMed & Gene Ontology.">
-""", unsafe_allow_html=True)
 
 
 @st.cache_resource
@@ -912,53 +905,42 @@ st.markdown("""
     </div>
     <div class="main-header-art">
         <svg width="230" height="170" viewBox="0 0 230 170" xmlns="http://www.w3.org/2000/svg">
-            <!-- Transcriptome motif: double-helix with expression 'rungs' -->
-            <path d="M 20 20 C 45 45, 45 65, 20 85 C -5 105, -5 125, 20 150"
-                  fill="none" stroke="#12a396" stroke-width="2.5" opacity="0.85"/>
-            <path d="M 55 20 C 30 45, 30 65, 55 85 C 80 105, 80 125, 55 150"
-                  fill="none" stroke="#d99a1f" stroke-width="2.5" opacity="0.85"/>
-            <line x1="22" y1="30" x2="53" y2="30" stroke="#7fb8b0" stroke-width="1.6"/>
-            <line x1="16" y1="50" x2="59" y2="50" stroke="#7fb8b0" stroke-width="1.6"/>
-            <line x1="20" y1="70" x2="55" y2="70" stroke="#7fb8b0" stroke-width="1.6"/>
-            <line x1="16" y1="90" x2="59" y2="90" stroke="#7fb8b0" stroke-width="1.6"/>
-            <line x1="20" y1="110" x2="55" y2="110" stroke="#7fb8b0" stroke-width="1.6"/>
-            <line x1="16" y1="130" x2="59" y2="130" stroke="#7fb8b0" stroke-width="1.6"/>
-
-            <!-- small expression-level bars (transcriptome readout) -->
-            <rect x="80" y="118" width="7" height="18" fill="#12a396" opacity="0.75"/>
-            <rect x="91" y="105" width="7" height="31" fill="#d99a1f" opacity="0.75"/>
-            <rect x="102" y="95" width="7" height="41" fill="#2f9e5e" opacity="0.75"/>
-            <rect x="113" y="112" width="7" height="24" fill="#12a396" opacity="0.75"/>
-
-            <!-- Seasonality icons -->
-            <!-- Sun (summer) -->
+            <path d="M 20 20 C 45 45, 45 65, 20 85 C -5 105, -5 125, 20 150" fill="none" stroke="#12a396" stroke-width="2.5" opacity="0.85"></path>
+            <path d="M 55 20 C 30 45, 30 65, 55 85 C 80 105, 80 125, 55 150" fill="none" stroke="#d99a1f" stroke-width="2.5" opacity="0.85"></path>
+            <line x1="22" y1="30" x2="53" y2="30" stroke="#7fb8b0" stroke-width="1.6"></line>
+            <line x1="16" y1="50" x2="59" y2="50" stroke="#7fb8b0" stroke-width="1.6"></line>
+            <line x1="20" y1="70" x2="55" y2="70" stroke="#7fb8b0" stroke-width="1.6"></line>
+            <line x1="16" y1="90" x2="59" y2="90" stroke="#7fb8b0" stroke-width="1.6"></line>
+            <line x1="20" y1="110" x2="55" y2="110" stroke="#7fb8b0" stroke-width="1.6"></line>
+            <line x1="16" y1="130" x2="59" y2="130" stroke="#7fb8b0" stroke-width="1.6"></line>
+            <rect x="80" y="118" width="7" height="18" fill="#12a396" opacity="0.75"></rect>
+            <rect x="91" y="105" width="7" height="31" fill="#d99a1f" opacity="0.75"></rect>
+            <rect x="102" y="95" width="7" height="41" fill="#2f9e5e" opacity="0.75"></rect>
+            <rect x="113" y="112" width="7" height="24" fill="#12a396" opacity="0.75"></rect>
             <g transform="translate(175,35)" stroke="#d99a1f" stroke-width="2" fill="none" opacity="0.9">
-                <circle r="10" fill="#fbf1dc" stroke="#d99a1f"/>
-                <line x1="0" y1="-16" x2="0" y2="-20"/>
-                <line x1="0" y1="16" x2="0" y2="20"/>
-                <line x1="-16" y1="0" x2="-20" y2="0"/>
-                <line x1="16" y1="0" x2="20" y2="0"/>
-                <line x1="-11" y1="-11" x2="-14" y2="-14"/>
-                <line x1="11" y1="11" x2="14" y2="14"/>
-                <line x1="-11" y1="11" x2="-14" y2="14"/>
-                <line x1="11" y1="-11" x2="14" y2="-14"/>
+                <circle r="10" fill="#fbf1dc" stroke="#d99a1f"></circle>
+                <line x1="0" y1="-16" x2="0" y2="-20"></line>
+                <line x1="0" y1="16" x2="0" y2="20"></line>
+                <line x1="-16" y1="0" x2="-20" y2="0"></line>
+                <line x1="16" y1="0" x2="20" y2="0"></line>
+                <line x1="-11" y1="-11" x2="-14" y2="-14"></line>
+                <line x1="11" y1="11" x2="14" y2="14"></line>
+                <line x1="-11" y1="11" x2="-14" y2="14"></line>
+                <line x1="11" y1="-11" x2="14" y2="-14"></line>
             </g>
-            <!-- Snowflake (winter) -->
             <g transform="translate(205,80)" stroke="#12a396" stroke-width="1.8" opacity="0.9">
-                <line x1="0" y1="-13" x2="0" y2="13"/>
-                <line x1="-11.3" y1="-6.5" x2="11.3" y2="6.5"/>
-                <line x1="-11.3" y1="6.5" x2="11.3" y2="-6.5"/>
+                <line x1="0" y1="-13" x2="0" y2="13"></line>
+                <line x1="-11.3" y1="-6.5" x2="11.3" y2="6.5"></line>
+                <line x1="-11.3" y1="6.5" x2="11.3" y2="-6.5"></line>
             </g>
-            <!-- Leaf (autumn) -->
             <g transform="translate(150,80)" opacity="0.9">
-                <path d="M 0 12 C -8 2, -8 -10, 0 -14 C 8 -10, 8 2, 0 12 Z" fill="#e0685a" stroke="#c94f42" stroke-width="1"/>
-                <line x1="0" y1="12" x2="0" y2="-10" stroke="#c94f42" stroke-width="1"/>
+                <path d="M 0 12 C -8 2, -8 -10, 0 -14 C 8 -10, 8 2, 0 12 Z" fill="#e0685a" stroke="#c94f42" stroke-width="1"></path>
+                <line x1="0" y1="12" x2="0" y2="-10" stroke="#c94f42" stroke-width="1"></line>
             </g>
-            <!-- Sprout (spring) -->
             <g transform="translate(180,125)" opacity="0.9">
-                <path d="M 0 15 C 0 0, -10 -5, -12 -14 C -3 -12, 0 -2, 0 8" fill="#2f9e5e"/>
-                <path d="M 0 15 C 0 2, 9 -3, 11 -11 C 3 -9, 0 0, 0 8" fill="#5cbd7f"/>
-                <line x1="0" y1="15" x2="0" y2="20" stroke="#2f9e5e" stroke-width="2"/>
+                <path d="M 0 15 C 0 0, -10 -5, -12 -14 C -3 -12, 0 -2, 0 8" fill="#2f9e5e"></path>
+                <path d="M 0 15 C 0 2, 9 -3, 11 -11 C 3 -9, 0 0, 0 8" fill="#5cbd7f"></path>
+                <line x1="0" y1="15" x2="0" y2="20" stroke="#2f9e5e" stroke-width="2"></line>
             </g>
         </svg>
     </div>
