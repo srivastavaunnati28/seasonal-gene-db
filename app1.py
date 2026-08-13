@@ -24,9 +24,6 @@ st.markdown("""
 
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-    /* Light scientific background: soft teal/cream gradient + faint
-       repeating dot-grid (microarray/heatmap motif) and a faint wavy
-       double-helix line (transcriptome motif) tiled across the page. */
     .stApp {
         background-color: #f3f9f8;
         background-image:
@@ -37,7 +34,6 @@ st.markdown("""
         background-attachment: fixed;
     }
 
-    /* Journal-style top utility strip */
     .ncbi-topstrip {
         background: #0c3b3f;
         color: #cdeae6;
@@ -47,8 +43,6 @@ st.markdown("""
         letter-spacing: .4px;
     }
 
-    /* Masthead hero banner — light card with a seasonality/transcriptome
-       SVG illustration on the right (original artwork, not copied). */
     .main-header {
         position: relative;
         background: linear-gradient(120deg, #ffffff 0%, #eaf6f4 60%, #e2f2ee 100%);
@@ -85,7 +79,6 @@ st.markdown("""
         font-style: italic;
     }
 
-    /* Section headers — teal-on-cream with gold rule */
     .section-header {
         font-family: 'Space Grotesk', sans-serif;
         font-weight: 700;
@@ -100,7 +93,6 @@ st.markdown("""
         font-size: 13.5px;
     }
 
-    /* Result panel — clean white card, teal top rule */
     .result-box {
         background: #ffffff;
         border: 1px solid #cfe8e3;
@@ -123,7 +115,6 @@ st.markdown("""
         margin-top: 4px;
     }
 
-    /* Photoperiod comparison cards — teal / gold / green trio on light bg */
     .photo-card {
         border-radius: 8px;
         padding: 14px;
@@ -147,7 +138,6 @@ st.markdown("""
         line-height: 1.55;
     }
 
-    /* Source badges */
     .source-tag {
         display: inline-block;
         background: #eaf6f4;
@@ -164,7 +154,6 @@ st.markdown("""
     .source-tag-go { background: #fbf1dc; border-color: #e6c98f; color: #9c6f17; }
     .source-tag-seed { background: #f1e9fb; border-color: #cfa9e8; color: #6a1a9c; }
 
-    /* Live cross-reference panel */
     .xref-box {
         background: #f7fcfb;
         border: 1px solid #cfe8e3;
@@ -192,7 +181,6 @@ st.markdown("""
     .evidence-single { background: #fbf1dc; color: #9c6f17; border: 1px solid #e6c98f; }
     .evidence-replicated { background: #e9f6ec; color: #1f7a45; border: 1px solid #9fd6b5; }
 
-    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
         border-bottom: 2px solid #cfe8e3;
         gap: 4px;
@@ -216,7 +204,6 @@ st.markdown("""
         overflow: hidden;
     }
 
-    /* Buttons */
     .stButton>button, .stDownloadButton>button, .stFormSubmitButton>button {
         background: #0f8c82 !important;
         color: #ffffff !important;
@@ -229,7 +216,6 @@ st.markdown("""
         color: #1a1a1a !important;
     }
 
-    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: #eaf6f4;
         border-right: 2px solid #bfe3dc;
@@ -245,27 +231,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="ncbi-topstrip">🧬 PHYSIOLOGICAL RESEARCH RESOURCE &nbsp;·&nbsp; cross-referenced live with NCBI, PubMed, CircaDB, GEO, UniProt &amp; Gene Ontology</div>', unsafe_allow_html=True)
-
-# ════════════════════════════════════════════════════════════════
-# SEO / DISCOVERABILITY METADATA — REMOVED
-#
-# An earlier version injected <meta>/<script> tags here via
-# st.markdown(unsafe_allow_html=True) for SEO purposes (page
-# description, Open Graph tags, JSON-LD). This caused a hard crash:
-#   "TypeError: First argument must be a String, HTMLElement,
-#    HTMLCollection, or NodeList"
-# Streamlit's frontend does not reliably support injecting <meta>,
-# <link>, <title>, or <script> tags into the page this way — it can
-# attempt to relocate/process them and fail. This block is
-# intentionally left empty as a result.
-#
-# Safe alternative for SEO: create a separate static HTML "landing
-# page" (e.g. free on GitHub Pages) with proper <meta>/Open Graph/
-# JSON-LD tags in a real <head>, and link from that page to this
-# Streamlit app. That page will index normally; this Streamlit app
-# itself should only use st.set_page_config() for its title/icon,
-# which IS safely supported (see PAGE CONFIG section above).
-# ════════════════════════════════════════════════════════════════
 
 
 @st.cache_resource
@@ -300,8 +265,6 @@ CREATE TABLE IF NOT EXISTS community_contributions (
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )""")
 
-# Add photoperiod_condition column to gene_seasonal_function if missing
-# (lets each curated row carry SD / LD / Intermediate alongside its season)
 try:
     setup_cursor.execute("""
         ALTER TABLE gene_seasonal_function
@@ -309,27 +272,20 @@ try:
     """)
     conn.commit()
 except mysql.connector.Error:
-    conn.rollback()  # column already exists, safe to ignore
+    conn.rollback()
 
 conn.commit()
 
-# ── Schema migrations for scientific-rigor features ──────────────
-# Each ALTER is attempted independently and rolled back silently if the
-# column already exists, so this block is safe to run on every app start.
 _SCHEMA_MIGRATIONS = [
-    # Statistical rigor: p-value, sample size, confidence interval per curated row
     ("gene_seasonal_function", "ADD COLUMN p_value DECIMAL(10,6) DEFAULT NULL"),
     ("gene_seasonal_function", "ADD COLUMN sample_size INT DEFAULT NULL"),
     ("gene_seasonal_function", "ADD COLUMN ci_lower DECIMAL(8,3) DEFAULT NULL"),
     ("gene_seasonal_function", "ADD COLUMN ci_upper DECIMAL(8,3) DEFAULT NULL"),
-    # Evidence grading per curated row
     ("gene_seasonal_function", "ADD COLUMN evidence_level VARCHAR(40) DEFAULT NULL"),
-    # HGNC / Ensembl / UniProt validated identifiers per gene
     ("genes", "ADD COLUMN hgnc_id VARCHAR(20) DEFAULT NULL"),
     ("genes", "ADD COLUMN ensembl_id VARCHAR(30) DEFAULT NULL"),
     ("genes", "ADD COLUMN uniprot_id VARCHAR(20) DEFAULT NULL"),
     ("genes", "ADD COLUMN symbol_validated_at TIMESTAMP NULL DEFAULT NULL"),
-    # Community contributions: moderation queue + same rigor/ID fields
     ("community_contributions", "ADD COLUMN status VARCHAR(10) DEFAULT 'pending'"),
     ("community_contributions", "ADD COLUMN p_value DECIMAL(10,6) DEFAULT NULL"),
     ("community_contributions", "ADD COLUMN sample_size INT DEFAULT NULL"),
@@ -349,7 +305,6 @@ for _table, _clause in _SCHEMA_MIGRATIONS:
     except mysql.connector.Error:
         conn.rollback()
 
-# Dataset versioning table — one row tracks the current version/citation info
 setup_cursor.execute("""
 CREATE TABLE IF NOT EXISTS dataset_meta (
     id INT PRIMARY KEY DEFAULT 1,
@@ -380,8 +335,6 @@ CONTRIBUTION_STATUS_LABELS = {
     "rejected": "❌ Rejected",
 }
 
-# Map each season to its typical photoperiod condition (used to backfill
-# photoperiod_condition where it hasn't been manually set yet)
 SEASON_TO_PHOTOPERIOD = {
     "Winter": "SD",
     "Summer": "LD",
@@ -406,10 +359,6 @@ SOURCE_INFO = {
 
 # ════════════════════════════════════════════════════════════════
 # CURATED SEED LIBRARY — established seasonal-physiology gene sets
-# (Static, textbook/literature-level biology used so a parameter
-# search never comes back empty, even before checking live sources.
-# References: Nakao et al. 2008 Nature; Hanon et al. 2008 Curr Biol;
-# Dardente et al. 2010 J Neuroendocrinol; Hazlerigg & Loudon 2008.)
 # ════════════════════════════════════════════════════════════════
 PARAMETER_LIBRARY = {
     "Photoperiod / Melatonin Pathway": {
@@ -493,9 +442,6 @@ PARAMETER_LIBRARY = {
 # ════════════════════════════════════════════════════════════════
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def fetch_ncbi_gene_summary(gene_symbol: str, organism: str = "Homo sapiens"):
-    """Look up a gene symbol against live NCBI Gene data.
-    Returns None on any failure (network, rate limit, no match) so the
-    rest of the app degrades gracefully rather than crashing."""
     try:
         search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
         params = {
@@ -533,12 +479,6 @@ def fetch_ncbi_gene_summary(gene_symbol: str, organism: str = "Homo sapiens"):
 
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def fetch_ncbi_gene_search(query_term: str, organism: str = "Homo sapiens", retmax: int = 15):
-    """Broad, NCBI-style free-text search across Gene records (not restricted
-    to an exact symbol). Used only as enrichment for queries already judged
-    relevant to this database's photoperiod/seasonal scope — never as a
-    standalone trigger for an unrelated gene to appear as a 'result'.
-    Returns a list of dicts: symbol, name, gene_id, url. Empty list on
-    failure or no hits."""
     try:
         search_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
         term = f"({query_term}[All Fields]) AND {organism}[Organism] AND alive[prop]"
@@ -577,17 +517,9 @@ def uniprot_search_url(gene_symbol: str) -> str:
 
 # ════════════════════════════════════════════════════════════════
 # HGNC IDENTIFIER VALIDATION
-# Confirms a gene symbol against the official HGNC registry and
-# resolves it to stable Ensembl/UniProt identifiers, so entries are
-# matched by ID rather than by (typo-prone) free-text symbol alone.
 # ════════════════════════════════════════════════════════════════
 @st.cache_data(ttl=60 * 60 * 24 * 7, show_spinner=False)
 def fetch_hgnc_info(gene_symbol: str):
-    """Validate gene_symbol against HGNC. Tries an exact current-symbol
-    fetch first, then falls back to a symbol search (covers aliases/
-    previous symbols). Returns None if HGNC has no record at all —
-    the caller should treat that as 'symbol not officially validated',
-    not necessarily 'gene does not exist' (HGNC only covers human)."""
     headers = {"Accept": "application/json"}
     try:
         url = f"https://rest.genenames.org/fetch/symbol/{gene_symbol.upper()}"
@@ -626,7 +558,6 @@ def fetch_hgnc_info(gene_symbol: str):
 
 
 def hgnc_badge(hgnc_info):
-    """Small inline badge showing HGNC validation status."""
     if hgnc_info:
         return (f'<span class="source-tag source-tag-db">✔ HGNC validated · '
                 f'{hgnc_info["hgnc_id"]}</span>')
@@ -634,7 +565,6 @@ def hgnc_badge(hgnc_info):
 
 
 def evidence_level_badge(level: str) -> str:
-    """Color-coded badge for the evidence-grading tier of a curated row."""
     if not level:
         return '<span class="evidence-badge evidence-single">Evidence level not specified</span>'
     colors = {
@@ -648,18 +578,14 @@ def evidence_level_badge(level: str) -> str:
 
 
 def is_valid_source_reference(ref: str) -> bool:
-    """Require a real, checkable citation: a PMID (digits, optionally
-    prefixed 'PMID'), a DOI (starts with '10.'), or a GEO accession
-    (starts with GSE/GSM/GDS). Rejects bare/arbitrary URLs so every
-    contribution is traceable to a formal, citable record."""
     import re
     ref = ref.strip()
     if not ref:
         return False
     patterns = [
-        r'^(PMID:?\s*)?\d{4,9}$',                 # PMID
-        r'^10\.\d{4,9}/\S+$',                      # DOI
-        r'^GSE\d+$', r'^GSM\d+$', r'^GDS\d+$',     # GEO accessions
+        r'^(PMID:?\s*)?\d{4,9}$',
+        r'^10\.\d{4,9}/\S+$',
+        r'^GSE\d+$', r'^GSM\d+$', r'^GDS\d+$',
     ]
     return any(re.match(p, ref, re.IGNORECASE) for p in patterns)
 
@@ -699,11 +625,6 @@ def evidence_badge(n_sources: int) -> str:
 
 @st.cache_data(ttl=60 * 60 * 12, show_spinner=False)
 def fetch_pubmed_photoperiod_papers(gene_symbol: str, max_results: int = 8):
-    """Live PubMed search for papers mentioning this gene alongside
-    photoperiod/seasonal/circadian terms. Used as enrichment for genes
-    already judged relevant, so a relevant search never comes back
-    empty-handed on the literature front.
-    Returns a list of dicts (title, authors, journal, year, url, pmid)."""
     try:
         term = (
             f'{gene_symbol}[Title/Abstract] AND '
@@ -751,9 +672,6 @@ def fetch_pubmed_photoperiod_papers(gene_symbol: str, max_results: int = 8):
 # ════════════════════════════════════════════════════════════════
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def fetch_go_terms(query: str, limit: int = 8):
-    """Search GO ontology terms matching a free-text query (e.g. 'melatonin',
-    'photoperiodism'). Returns list of dicts: id, name, aspect. Empty list
-    on failure — the calling code degrades gracefully."""
     try:
         url = "https://www.ebi.ac.uk/QuickGO/services/ontology/go/search"
         params = {"query": query, "limit": limit}
@@ -771,9 +689,6 @@ def fetch_go_terms(query: str, limit: int = 8):
 
 @st.cache_data(ttl=60 * 60 * 24, show_spinner=False)
 def fetch_go_annotated_genes(go_id: str, taxon_id: int = 9606, limit: int = 25):
-    """Given a GO term ID, fetch gene products annotated to it for a given
-    taxon (default human) via QuickGO's annotation search. Returns a sorted
-    list of unique symbols."""
     try:
         url = "https://www.ebi.ac.uk/QuickGO/services/annotation/search"
         params = {"goId": go_id, "taxonId": taxon_id,
@@ -793,9 +708,6 @@ def fetch_go_annotated_genes(go_id: str, taxon_id: int = 9606, limit: int = 25):
 
 
 def render_venn(sets_dict: dict):
-    """Build a schematic (not area-proportional) 2- or 3-set Venn diagram
-    using pure Plotly shapes/annotations — no extra plotting library needed.
-    sets_dict: {label: set(gene_symbols)} with 2 or 3 entries."""
     names = list(sets_dict.keys())
     colors = ["#205493", "#e8820c", "#1f9d55"]
 
@@ -978,8 +890,6 @@ tab_search, tab_compare, tab_contribute, tab_browse, tab_methods, tab_admin = st
 
 
 def match_seed_library(query: str):
-    """Match a free-text query against the curated PARAMETER_LIBRARY —
-    by parameter name, keyword, or an exact seed-gene symbol."""
     q = query.strip().lower()
     if not q:
         return {}
@@ -996,28 +906,20 @@ def match_seed_library(query: str):
 # ════════════════════════════════════════════════════════════════
 # RELEVANCE GATE + UNIFIED RESULT TEMPLATE
 #
-# This database has a defined scope: photoperiod / melatonin, the
-# circadian clock core, seasonal (HPG-axis) reproduction, and the
-# thyroid-hormone seasonal switch (see PARAMETER_LIBRARY), plus
-# whatever has been curated into the SQL tables under that scope.
+# Scope: Photoperiod / Melatonin, Circadian Clock Core, Seasonal
+# Reproduction (HPG axis), Thyroid-Hormone Seasonal Switch — plus
+# whatever is curated into the SQL tables under that scope.
 #
-# A search is only considered "found" if it matches THAT scope —
-# via the curated database or the literature seed sets. If it does
-# not, the app reports "Not Found" even if the raw term happens to
-# exist in NCBI Gene or Gene Ontology generally (e.g. an unrelated
-# gene like TP53). Live NCBI/GO calls are used only to *enrich*
-# genes that are already confirmed in-scope — never as a standalone
-# way for an out-of-scope term to produce a "result".
-#
-# Every in-scope match — whether it came from the curated DB, the
-# literature seed library, or a pathway keyword — is rendered with
-# the SAME template (render_gene_card), so results never look
-# structurally different depending on which layer found them.
+# 🔧 FIX: when the query is an EXACT gene symbol (e.g. "DIO2"), the
+# search now returns ONLY that gene — no sibling genes from the same
+# pathway are pulled in, and the pathway-wide description block is
+# suppressed (it used to mention other gene names, which read as if
+# "other genes' data" was being shown). A new `matched_via_exact_gene`
+# flag tells the UI layer to skip the multi-gene pathway description
+# and go straight to that one gene's card + graphs.
 # ════════════════════════════════════════════════════════════════
 
 def get_seed_role_for_gene(symbol: str):
-    """Return (parameter_name, role_text) for the first seed-library entry
-    that lists this exact gene symbol, or (None, None) if not present."""
     for pname, pdata in PARAMETER_LIBRARY.items():
         for g in pdata["seed_genes"]:
             if g["symbol"].upper() == symbol.upper():
@@ -1029,29 +931,26 @@ def get_relevant_genes(raw_query: str, conn):
     """
     Relevance gate for the universal search box.
 
-    Determines whether raw_query falls within this database's defined
-    photoperiod/seasonal-physiology scope, and if so, resolves it to a
-    concrete set of gene symbols to display — regardless of whether the
-    query was typed as a gene symbol or a pathway/parameter keyword.
-
-    If the query is an EXACT gene symbol, resolution stops there — only
-    that gene's own data is returned, so a specific-gene search never
-    gets diluted with unrelated genes whose pathway text happens to
-    contain the same word.
-
     Returns:
-        matched_genes (set[str]):      every gene symbol considered in-scope for this query
-        matched_parameters (dict):     PARAMETER_LIBRARY entries whose pathway/name/keyword matched
-        db_pathway_hit (bool):         True if the curated DB's own pathway/functional_role text matched
+        matched_genes (set[str])
+        matched_parameters (dict)   — only populated for PATHWAY/keyword
+                                       searches, never for an exact-gene
+                                       search (see matched_via_exact_gene)
+        db_pathway_hit (bool)
+        matched_via_exact_gene (bool) — True if the query resolved to one
+                                       exact gene symbol. UI should render
+                                       ONLY that gene, with no pathway-wide
+                                       description block.
     """
     q = raw_query.strip()
     symbol = q.upper()
     matched_genes = set()
     matched_parameters = {}
     db_pathway_hit = False
+    matched_via_exact_gene = False
 
     if not q:
-        return matched_genes, matched_parameters, db_pathway_hit
+        return matched_genes, matched_parameters, db_pathway_hit, matched_via_exact_gene
 
     exact_match_found = False
 
@@ -1064,6 +963,7 @@ def get_relevant_genes(raw_query: str, conn):
         if not exists_df.empty:
             matched_genes.add(symbol)
             exact_match_found = True
+            matched_via_exact_gene = True
     except Exception:
         pass
 
@@ -1071,17 +971,20 @@ def get_relevant_genes(raw_query: str, conn):
     pname_hit, _ = get_seed_role_for_gene(symbol)
     if pname_hit:
         matched_genes.add(symbol)
-        matched_parameters[pname_hit] = PARAMETER_LIBRARY[pname_hit]
         exact_match_found = True
+        matched_via_exact_gene = True
+        # NOTE: we deliberately do NOT add the whole pathway to
+        # matched_parameters here anymore — an exact-gene search should
+        # stay scoped to that one gene, not surface every sibling gene's
+        # name via the pathway description text.
 
-    # If the query is an exact gene symbol, stop here — show ONLY this
-    # gene's own data, not every other gene whose pathway text happens
-    # to contain the same word.
     if exact_match_found:
-        return matched_genes, matched_parameters, db_pathway_hit
+        return matched_genes, matched_parameters, db_pathway_hit, matched_via_exact_gene
 
     # (c) Query matches a defined pathway/parameter name or keyword —
-    #     pull in every gene belonging to that pathway
+    #     pull in every gene belonging to that pathway (this path is
+    #     only reached for non-exact / pathway-style searches, e.g.
+    #     "melatonin", "thyroid switch")
     seed_matches = match_seed_library(q)
     for pname, pdata in seed_matches.items():
         matched_parameters[pname] = pdata
@@ -1104,7 +1007,7 @@ def get_relevant_genes(raw_query: str, conn):
     except Exception:
         pass
 
-    return matched_genes, matched_parameters, db_pathway_hit
+    return matched_genes, matched_parameters, db_pathway_hit, matched_via_exact_gene
 
 
 def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
@@ -1116,7 +1019,6 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
     """
     seed_pname, seed_role = get_seed_role_for_gene(symbol)
 
-    # Curated quantitative data (season-by-season), if any
     gene_query = """
         SELECT g.full_name, g.category, g.hgnc_id, g.ensembl_id, g.uniprot_id,
                s.name AS season, gsf.expression_level,
@@ -1141,9 +1043,6 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
     category = df['category'][0] if not df.empty else (seed_pname or "Uncategorized")
     n_evidence = df['study_reference'].nunique() if not df.empty else 0
 
-    # HGNC identifier validation — resolve+cache official IDs the first
-    # time a gene is looked up, store them back on the genes row so
-    # future searches don't re-hit the HGNC API.
     hgnc_info = None
     stored_hgnc = df['hgnc_id'][0] if not df.empty else None
     if not df.empty and pd.notna(stored_hgnc) and stored_hgnc:
@@ -1302,12 +1201,19 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
                             file_name=f"{symbol}_seasonal_data.csv", mime="text/csv",
                             key=f"dl_{symbol}")
     else:
-        st.markdown('<div class="xref-box">No quantitative season/photoperiod fold-change data has been curated for this gene yet — it is included here on the strength of its established literature role (see above). Contribute quantitative data via the <b>Contribute Data</b> tab.</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="xref-box">
+            No quantitative season/photoperiod fold-change data has been curated yet for
+            <b>{symbol}</b> in the SQL database — it is shown here on the strength of its
+            established literature role (see above). Because there's no numeric data on file,
+            no fold-change chart can be generated for it yet.<br><br>
+            👉 Use the <b>Contribute Data</b> tab to add curated numeric data for {symbol}
+            (with a PMID/DOI/GEO reference) — once approved by an admin, this section will
+            automatically show its Short-Day vs Long-Day chart and seasonal trend graph.
+        </div>
+        """, unsafe_allow_html=True)
 
     # ── Fixed Section 4: Community-contributed data (approved only) ──
-    # Contributions sit in a moderation queue (status='pending') until an
-    # admin approves them in the Admin tab — only approved rows are shown
-    # here, so unverified data never appears mixed in with public results.
     try:
         comm_df = pd.read_sql(
             """SELECT season_or_condition AS "Season/Condition", expression_level AS "Expression",
@@ -1371,26 +1277,21 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
 
 # ════════════════════════════════════════════════════════════════
 # TAB 1 — UNIVERSAL SEARCH (gene symbol OR pathway/parameter, one box)
-# Every query is first checked against this database's defined scope
-# (curated DB + literature seed library). Only in-scope matches are
-# shown, all through the SAME unified card template. Anything outside
-# that scope — even if NCBI/GO would return something for it — is
-# reported as "Not Found".
 # ════════════════════════════════════════════════════════════════
 with tab_search:
     st.markdown('<div class="section-header" style="margin-top:0;">Search Any Gene or Pathway</div>', unsafe_allow_html=True)
     st.caption(
-        "Type an exact gene symbol (e.g. CLOCK, AANAT, MTNR1A) for a full seasonal profile, "
-        "or a pathway/parameter keyword (e.g. melatonin, photoperiod, seasonal reproduction, thyroid) "
-        "to find every related gene. Results are limited to this database's defined photoperiod/"
-        "seasonal-physiology scope — unrelated genes or pathways will return Not Found."
+        "Type an exact gene symbol (e.g. CLOCK, AANAT, MTNR1A, DIO2) for a full seasonal profile "
+        "of ONLY that gene, or a pathway/parameter keyword (e.g. melatonin, photoperiod, seasonal "
+        "reproduction, thyroid) to find every related gene. Results are limited to this database's "
+        "defined photoperiod/seasonal-physiology scope — unrelated genes or pathways will return Not Found."
     )
 
-    raw_query = st.text_input("Search", placeholder="e.g. CLOCK  •  melatonin  •  photoperiod  •  AANAT  •  seasonal reproduction",
+    raw_query = st.text_input("Search", placeholder="e.g. CLOCK  •  DIO2  •  melatonin  •  photoperiod  •  seasonal reproduction",
                                label_visibility="collapsed")
 
     if raw_query.strip():
-        matched_genes, matched_parameters, db_pathway_hit = get_relevant_genes(raw_query, conn)
+        matched_genes, matched_parameters, db_pathway_hit, matched_via_exact_gene = get_relevant_genes(raw_query, conn)
         refs_used = set()
 
         if not matched_genes and not matched_parameters:
@@ -1412,20 +1313,31 @@ with tab_search:
             </div>
             """, unsafe_allow_html=True)
         else:
-            # Pathway/parameter description(s), shown once if the query matched a defined pathway
-            for pname, pdata in matched_parameters.items():
-                st.markdown(f'<div class="section-header">🧬 Pathway — {pname}</div>', unsafe_allow_html=True)
-                st.markdown(f'<div class="xref-box">{pdata["description"]}</div>', unsafe_allow_html=True)
+            # Pathway/parameter description — ONLY shown for pathway/keyword
+            # searches, never for an exact-gene search (fix: avoids showing
+            # sibling gene names when someone searches one specific gene).
+            if not matched_via_exact_gene:
+                for pname, pdata in matched_parameters.items():
+                    st.markdown(f'<div class="section-header">🧬 Pathway — {pname}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="xref-box">{pdata["description"]}</div>', unsafe_allow_html=True)
 
             gene_list = sorted(matched_genes)
-            st.caption(f"{len(gene_list)} gene(s) matched within this database's defined scope.")
+            if matched_via_exact_gene:
+                st.caption(f"Showing results for **{gene_list[0]}** only.")
+            else:
+                st.caption(f"{len(gene_list)} gene(s) matched within this database's defined scope.")
 
             # SAME unified card for every matched gene, regardless of which
-            # layer (curated DB / seed library / DB pathway text) found it
+            # layer (curated DB / seed library / DB pathway text) found it.
+            # For an exact-gene search, gene_list has exactly one entry.
             for symbol in gene_list:
                 render_gene_card(symbol, conn, raw_query.strip(), refs_used)
 
             # ── Visual summary across all matched genes ───────────
+            # For an exact-gene search this naturally covers ONLY that one
+            # gene (gene_list has a single symbol), so the SD/LD bar chart,
+            # seasonal trend line, and heatmap below are all specific to
+            # the gene that was searched.
             if len(gene_list) >= 1:
                 st.markdown('<div class="section-header">📊 Seasonal & Photoperiod Visual Summary</div>', unsafe_allow_html=True)
                 placeholders_v = ",".join(["%s"] * len(gene_list))
@@ -1497,7 +1409,9 @@ with tab_search:
                     fig_heat.update_layout(plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', font_color='#123c3a')
                     st.plotly_chart(fig_heat, use_container_width=True, key="heatmap_genes")
                 else:
-                    st.caption("No curated fold-change data yet for the matched gene(s) — these charts need at least one curated database row with a numeric fold-change value.")
+                    st.caption(f"No curated fold-change data yet for **{'/'.join(gene_list)}** — these charts need at least "
+                               "one curated database row with a numeric fold-change value. Add one via the "
+                               "**Contribute Data** tab (with admin approval) to unlock the graphs.")
 
             st.markdown('<div class="section-header">📚 References Used in This Result</div>', unsafe_allow_html=True)
             if refs_used:
@@ -1518,7 +1432,7 @@ with tab_compare:
 
     if compare_input:
         symbols = [s.strip().upper() for s in compare_input.split(",") if s.strip()]
-        symbols = symbols[:6]  # cap to keep the chart readable
+        symbols = symbols[:6]
 
         if len(symbols) < 2:
             st.warning("Enter at least two gene symbols, separated by commas.")
@@ -1756,7 +1670,7 @@ with tab_methods:
     literature). These live calls never introduce a gene into a result on their
     own — they only add detail to genes already judged in-scope.
 
-    **6. Universal search behavior — unified, scope-gated results**
+    **6. Universal search behavior — unified, scope-gated, single-gene-safe results**
     The single Search box accepts either an exact gene symbol or a pathway/
     parameter keyword (e.g. "melatonin", "photoperiod", "seasonal reproduction").
     A query is first checked against this database's defined scope: (a) exact
@@ -1764,13 +1678,15 @@ with tab_methods:
     literature seed library, (c) pathway/parameter names or keywords from the
     seed library, and (d) this database's own curated pathway/functional-role
     text. **A query is only treated as "found" if at least one of these matches.**
-    Every gene that matches is then rendered using one identical result template
-    (header, known role, season/photoperiod comparison, data table, community
-    data, live NCBI cross-reference, related literature) — the layout never
-    differs depending on which of the four checks matched it. If none of the
-    four checks match, the app reports a clean **"Not Found"**, explicitly
-    naming the database's defined pathway scope, rather than falling back to
-    an unrelated live NCBI/GO hit for the raw search term.
+    If the query resolves to an **exact gene symbol** (e.g. "DIO2"), results are
+    scoped to that gene alone — no sibling genes from the same pathway are pulled
+    in, and the pathway-wide description is suppressed, so search, cards, and every
+    chart (season/photoperiod bar chart, SD-vs-LD comparison, seasonal trend line,
+    heatmap) all reflect only the gene that was searched. Only a **pathway/keyword**
+    search (e.g. "melatonin") intentionally pulls in every gene belonging to that
+    pathway. If none of the four checks match, the app reports a clean
+    **"Not Found"**, explicitly naming the database's defined pathway scope, rather
+    than falling back to an unrelated live NCBI/GO hit for the raw search term.
 
     **7. Community contributions**
     Data submitted via the Contribute tab is published immediately and is
@@ -1788,6 +1704,9 @@ with tab_methods:
     - This is a curation and cross-referencing tool, not a primary data source —
       always confirm critical values against the cited original publication or
       database record before use in a manuscript.
+    - A gene with no curated numeric row in the SQL database (only a literature
+      role in the seed library) will not have a fold-change graph until such
+      data is contributed and approved.
 
     **9. Identifier validation (HGNC)**
     Every gene symbol shown in a result card is checked against the official
@@ -1972,7 +1891,6 @@ with tab_admin:
                 if st.button(f"Import all {len(raw_df)} genes into the database", type="primary"):
                     ins_cursor = conn.cursor()
 
-                    # Look up season_id for Winter (=SD) and Summer (=LD)
                     ins_cursor.execute("SELECT id, name FROM seasons WHERE name IN ('Winter','Summer')")
                     season_ids = {name: sid for sid, name in ins_cursor.fetchall()}
 
@@ -1993,9 +1911,8 @@ with tab_admin:
                             if ncbi:
                                 full_name = ncbi["official_name"] or symbol
                                 chromosome = ncbi["chromosome"] or "N/A"
-                            time.sleep(0.4)  # stay under NCBI's unauthenticated rate limit
+                            time.sleep(0.4)
 
-                        # Upsert into genes table
                         ins_cursor.execute(
                             "SELECT id FROM genes WHERE gene_symbol = %s", (symbol,)
                         )
@@ -2026,7 +1943,6 @@ with tab_admin:
                                 return "LOW"
                             return "NORMAL"
 
-                        # Remove any prior rows for this gene+season+tissue combo to avoid duplicates on re-import
                         for season_name, photoperiod, mean_col in [
                             ("Winter", "SD", "mean_SD"), ("Summer", "LD", "mean_LD")
                         ]:
