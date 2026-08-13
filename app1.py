@@ -379,10 +379,14 @@ PARAMETER_LIBRARY = {
             {"symbol": "MTNR1A", "role": "Melatonin receptor 1 (MT1); mediates melatonin's phase-shifting and reproductive-axis effects."},
             {"symbol": "MTNR1B", "role": "Melatonin receptor 2 (MT2); implicated in metabolic/glucose regulation and circadian phase."},
             {"symbol": "GPR50", "role": "Melatonin-related orphan receptor; modulates MT1 signaling, implicated in seasonal metabolic adaptation."},
-            {"symbol": "TSHB", "role": "Thyroid-stimulating hormone beta; induced in the pars tuberalis under long photoperiod, triggers the seasonal thyroid-hormone switch."},
-            {"symbol": "DIO2", "role": "Type 2 deiodinase; locally activates T3, upregulated under long-day/summer-like photoperiod."},
-            {"symbol": "DIO3", "role": "Type 3 deiodinase; inactivates T3, upregulated under short-day/winter-like photoperiod."},
-            {"symbol": "EYA3", "role": "Transcriptional co-activator inducing TSHB under long photoperiod; core node of the seasonal switch."},
+            {"symbol": "TSHB", "role": "Thyroid-stimulating hormone beta; induced in the pars tuberalis under long photoperiod, triggers the seasonal thyroid-hormone switch.",
+             "pattern": {"SD": "LOW", "LD": "HIGH"}},
+            {"symbol": "DIO2", "role": "Type 2 deiodinase; locally activates T3, upregulated under long-day/summer-like photoperiod.",
+             "pattern": {"SD": "LOW", "LD": "HIGH"}},
+            {"symbol": "DIO3", "role": "Type 3 deiodinase; inactivates T3, upregulated under short-day/winter-like photoperiod.",
+             "pattern": {"SD": "HIGH", "LD": "LOW"}},
+            {"symbol": "EYA3", "role": "Transcriptional co-activator inducing TSHB under long photoperiod; core node of the seasonal switch.",
+             "pattern": {"SD": "LOW", "LD": "HIGH"}},
         ],
     },
     "Circadian Clock Core": {
@@ -428,11 +432,15 @@ PARAMETER_LIBRARY = {
             "short-day physiological state (Nakao et al. 2008; Hanon et al. 2008)."
         ),
         "seed_genes": [
-            {"symbol": "TSHB", "role": "Thyroid-stimulating hormone beta; pars tuberalis long-day output signal."},
+            {"symbol": "TSHB", "role": "Thyroid-stimulating hormone beta; pars tuberalis long-day output signal.",
+             "pattern": {"SD": "LOW", "LD": "HIGH"}},
             {"symbol": "TSHR", "role": "TSH receptor on pars tuberalis/ependymal cells; receives the TSHB signal."},
-            {"symbol": "DIO2", "role": "Activates thyroid hormone (T3) locally; marks the long-day/summer state."},
-            {"symbol": "DIO3", "role": "Inactivates thyroid hormone; marks the short-day/winter state."},
-            {"symbol": "EYA3", "role": "Induces TSHB transcription under long photoperiod."},
+            {"symbol": "DIO2", "role": "Activates thyroid hormone (T3) locally; marks the long-day/summer state.",
+             "pattern": {"SD": "LOW", "LD": "HIGH"}},
+            {"symbol": "DIO3", "role": "Inactivates thyroid hormone; marks the short-day/winter state.",
+             "pattern": {"SD": "HIGH", "LD": "LOW"}},
+            {"symbol": "EYA3", "role": "Induces TSHB transcription under long photoperiod.",
+             "pattern": {"SD": "LOW", "LD": "HIGH"}},
         ],
     },
 }
@@ -927,6 +935,19 @@ def get_seed_role_for_gene(symbol: str):
     return None, None
 
 
+def get_seed_pattern_for_gene(symbol: str):
+    """Return the literature-established qualitative SD/LD direction
+    ({'SD': 'LOW'/'HIGH', 'LD': 'LOW'/'HIGH'}) for a seed-library gene,
+    or None if this gene has no such pattern on file. This is NOT
+    numeric/measured data — it only exists to draw an illustrative
+    schematic chart when no curated fold-change rows exist yet."""
+    for pdata in PARAMETER_LIBRARY.values():
+        for g in pdata["seed_genes"]:
+            if g["symbol"].upper() == symbol.upper() and "pattern" in g:
+                return g["pattern"]
+    return None
+
+
 def get_relevant_genes(raw_query: str, conn):
     """
     Relevance gate for the universal search box.
@@ -1203,15 +1224,47 @@ def render_gene_card(symbol: str, conn, raw_query: str, refs_used: set):
     else:
         st.markdown(f"""
         <div class="xref-box">
-            No quantitative season/photoperiod fold-change data has been curated yet for
-            <b>{symbol}</b> in the SQL database — it is shown here on the strength of its
-            established literature role (see above). Because there's no numeric data on file,
-            no fold-change chart can be generated for it yet.<br><br>
-            👉 Use the <b>Contribute Data</b> tab to add curated numeric data for {symbol}
+            No <b>measured</b> season/photoperiod fold-change data has been curated yet for
+            <b>{symbol}</b> in the SQL database — the role above is its established literature
+            description, not a numeric result.<br><br>
+            👉 Use the <b>Contribute Data</b> tab to add real curated numeric data for {symbol}
             (with a PMID/DOI/GEO reference) — once approved by an admin, this section will
-            automatically show its Short-Day vs Long-Day chart and seasonal trend graph.
+            automatically switch to a full Short-Day vs Long-Day chart, seasonal trend line,
+            and heatmap built from that measured data.
         </div>
         """, unsafe_allow_html=True)
+
+        # Schematic (illustrative-only) chart, drawn ONLY from a
+        # literature-established qualitative direction on file for this
+        # gene — never fabricated numbers. Clearly labeled as schematic
+        # so it can never be mistaken for measured fold-change data.
+        seed_pattern = get_seed_pattern_for_gene(symbol)
+        if seed_pattern:
+            st.markdown('<div class="section-header">📐 Schematic Photoperiod Pattern (Illustrative — Not Measured Data)</div>', unsafe_allow_html=True)
+            st.caption(
+                f"{symbol} has no numeric fold-change curated yet, but its established "
+                "literature role describes a clear qualitative direction. This chart is a "
+                "**schematic representation only** — relative HIGH/LOW category, not a real "
+                "fold-change value — meant to visualize the direction described in the "
+                "literature above, not to be cited as measured data."
+            )
+            level_map = {"LOW": 1, "NORMAL": 2, "HIGH": 3}
+            schem_df = pd.DataFrame([
+                {"Photoperiod": cond, "Relative Level": level_map.get(level, 2), "Category": level}
+                for cond, level in seed_pattern.items()
+            ])
+            fig_schem = px.bar(
+                schem_df, x="Photoperiod", y="Relative Level", color="Photoperiod",
+                text="Category",
+                color_discrete_map={"SD": "#22d3c8", "LD": "#e8b93a"},
+                title=f"{symbol} — Schematic SD vs LD Direction (illustrative only)"
+            )
+            fig_schem.update_traces(textposition="outside")
+            fig_schem.update_layout(
+                showlegend=False, plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                font_color='#123c3a', yaxis=dict(range=[0, 4], showticklabels=False, title=""),
+            )
+            st.plotly_chart(fig_schem, use_container_width=True, key=f"schematic_{symbol}")
 
     # ── Fixed Section 4: Community-contributed data (approved only) ──
     try:
