@@ -813,15 +813,6 @@ with st.sidebar:
     with st.expander("Export as BibTeX"):
         st.code(generate_bibtex_citation(_meta), language=None)
 
-    # ── Lab affiliation / logo ──────────────────────────────
-    st.divider()
-    st.image("assets/bioclock_logo.jpeg", width=140)
-    st.markdown(
-        "<p style='text-align:center; font-size:13px; font-weight:700; color:#0f5c56; margin-top:-8px;'>"
-        "Bioclock Lab<br>University of Allahabad</p>",
-        unsafe_allow_html=True
-    )
-
 # ════════════════════════════════════════════════════════════════
 # HEADER
 # ════════════════════════════════════════════════════════════════
@@ -2056,3 +2047,16 @@ st.caption("This is an open, publicly editable research database. Data accuracy 
 st.caption("📚 Full reference list available in the sidebar. Suggested citation: Your Name (2026). "
            "*Seasonal Physiology Gene Database*. "
            "seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app")
+
+# ── Lab affiliation / logo (centered, footer) ──────────────────
+import os
+st.markdown("<br>", unsafe_allow_html=True)
+logo_col1, logo_col2, logo_col3 = st.columns([1, 1, 1])
+with logo_col2:
+    if os.path.exists("assets/bioclock_logo.jpeg"):
+        st.image("assets/bioclock_logo.jpeg", width=140)
+    st.markdown(
+        "<p style='text-align:center; font-size:13px; font-weight:700; color:#0f5c56;'>"
+        "Bioclock Lab<br>University of Allahabad</p>",
+        unsafe_allow_html=True
+    )
