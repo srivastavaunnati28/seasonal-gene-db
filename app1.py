@@ -813,6 +813,15 @@ with st.sidebar:
     with st.expander("Export as BibTeX"):
         st.code(generate_bibtex_citation(_meta), language=None)
 
+    # ── Lab affiliation / logo ──────────────────────────────
+    st.divider()
+    st.image("assets/bioclock_logo.jpeg", width=140)
+    st.markdown(
+        "<p style='text-align:center; font-size:13px; font-weight:700; color:#0f5c56; margin-top:-8px;'>"
+        "Bioclock Lab<br>University of Allahabad</p>",
+        unsafe_allow_html=True
+    )
+
 # ════════════════════════════════════════════════════════════════
 # HEADER
 # ════════════════════════════════════════════════════════════════
