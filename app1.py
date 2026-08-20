@@ -204,6 +204,29 @@ st.markdown("""
         overflow: hidden;
     }
 
+    /* ── Bold, colorful search / text-input boxes ── */
+    .stTextInput>div>div>input {
+        border: 2.5px solid #0f8c82 !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 15.5px !important;
+        color: #0b3d3f !important;
+        padding: 10px 14px !important;
+        background: #ffffff !important;
+        box-shadow: 0 2px 10px rgba(15,140,130,0.18) !important;
+        transition: box-shadow 0.15s ease, border-color 0.15s ease;
+    }
+    .stTextInput>div>div>input:focus {
+        border: 2.5px solid #d99a1f !important;
+        box-shadow: 0 0 0 3px rgba(217,154,31,0.20) !important;
+        outline: none !important;
+    }
+    .stTextInput>div>div>input::placeholder {
+        color: #5c8a86 !important;
+        font-weight: 500 !important;
+        opacity: 0.85 !important;
+    }
+
     .stButton>button, .stDownloadButton>button, .stFormSubmitButton>button {
         background: #0f8c82 !important;
         color: #ffffff !important;
@@ -2048,15 +2071,28 @@ st.caption("📚 Full reference list available in the sidebar. Suggested citatio
            "*Seasonal Physiology Gene Database*. "
            "seasonal-gene-db-wb4nzf4rwezxmhzrtrcimr.streamlit.app")
 
-# ── Lab affiliation / logo (centered, footer) ──────────────────
+# ── Lab affiliation / logo (centered, footer, tightly grouped) ──
 import os
+import base64
+
 st.markdown("<br>", unsafe_allow_html=True)
-logo_col1, logo_col2, logo_col3 = st.columns([1, 1, 1])
-with logo_col2:
-    if os.path.exists("assets/bioclock_logo.jpeg"):
-        st.image("assets/bioclock_logo.jpeg", width=140)
-    st.markdown(
-        "<p style='text-align:center; font-size:13px; font-weight:700; color:#0f5c56;'>"
-        "Bioclock Lab<br>University of Allahabad</p>",
-        unsafe_allow_html=True
+
+_logo_path = "assets/bioclock_logo.jpeg"
+_logo_html = ""
+if os.path.exists(_logo_path):
+    with open(_logo_path, "rb") as _f:
+        _logo_b64 = base64.b64encode(_f.read()).decode()
+    _logo_html = (
+        f'<img src="data:image/jpeg;base64,{_logo_b64}" width="130" '
+        f'style="display:block;border-radius:8px;box-shadow:0 2px 8px rgba(15,60,60,0.12);">'
     )
+
+st.markdown(f"""
+<div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+            gap:8px; margin-top:6px; margin-bottom:4px;">
+    {_logo_html}
+    <p style="text-align:center; font-size:13px; font-weight:700; color:#0f5c56; margin:0; line-height:1.4;">
+        Bioclock Lab<br>University of Allahabad
+    </p>
+</div>
+""", unsafe_allow_html=True)
